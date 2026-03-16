@@ -29,22 +29,37 @@
         input[type="color"] { cursor: pointer; padding: 0; border: 1px solid #6DA4CF; border-radius: 2px; background: none; height: 24px; width: 24px; }
         
         #canvas-wrapper { 
-            flex-grow: 1; position: relative; background: #050608; 
+            flex-grow: 1; 
+            background: #050608; 
             background-image: radial-gradient(#151a25 1.5px, transparent 1.5px); 
-            background-size: 25px 25px; display: flex; justify-content: center; 
-            align-items: center; overflow: hidden; 
+            background-size: 25px 25px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden; 
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* NEW: The Picture Frame for 16:9 ratio */
+        #aspect-ratio-forcer {
+            position: relative;
+            aspect-ratio: 16 / 9;
+            max-width: 100%;
+            max-height: 100%;
+            display: flex;
         }
         
         canvas { 
-            display: block; background: #080a0d; border: 4px solid #6DA4CF; 
-            border-radius: 6px; box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 0 10px rgba(109, 164, 207, 0.4); 
+            width: 100%;
+            height: 100%;
+            display: block; 
+            background: #080a0d; 
+            border: 4px solid #6DA4CF; 
+            border-radius: 6px; 
+            box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 0 10px rgba(109, 164, 207, 0.4); 
             cursor: crosshair; 
-            
-            /* DYNAMIC SCALING OPTIMIZATIONS (FIXED) */
-            max-width: calc(100% - 40px);
-            max-height: calc(100% - 40px);
-            aspect-ratio: 16 / 9; 
-        }
+            box-sizing: border-box;
         }
         
         .hud-panel { position: absolute; background: rgba(10, 12, 16, 0.9); border: 1px solid #6DA4CF; pointer-events: none; box-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-transform: uppercase; letter-spacing: 1px; }
@@ -105,13 +120,13 @@
         <div class="tool-group">
             <span style="font-size:0.8em; color:#6DA4CF;">PROPERTIES:</span>
             <select id="colorSelect" title="Quick Color Preset">
-                <option value="#0066ff">Blue</option>
+                <option value="#0033aa">Blue</option>
                 <option value="#ff1a1a">Red</option>
                 <option value="#00e64d">Green</option>
                 <option value="#ffcc00">Yellow</option>
                 <option value="#ffffff">White</option>
             </select>
-            <input type="color" id="customColorPicker" value="#0066ff" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
+            <input type="color" id="customColorPicker" value="#0033aa" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
             <div class="separator" style="margin: 0 2px;"></div>
             
             <select id="unitShapeSelect" title="Unit Shape">
@@ -130,7 +145,7 @@
         <div class="separator"></div>
         <div class="tool-group">
             <span style="font-size:0.8em; color:#6DA4CF;">DEPLOY:</span>
-            <button onclick="addUnit('501st')" style="color: #0066ff;">501st</button>
+            <button onclick="addUnit('501st')" style="color: #0033aa;">501st</button>
             <button onclick="addUnit('enemy')" style="color: #ff1a1a;">OPFOR</button>
             <button onclick="addUnit('ally')" style="color: #00e64d;">ALLY</button>
             <button onclick="addUnit('objective')" style="color: #ffcc00;">TGT</button>
@@ -167,21 +182,23 @@
 </div>
 
 <div id="canvas-wrapper">
-    <canvas id="battlefield"></canvas>
-    <div class="hud-panel controls-hint" id="hintBox">
-        <b style="color:#6DA4CF;">OP-MODE: MOVE</b><br>> DRAG ENTITIES TO REPOSITION<br>> RIGHT-CLICK TO ADD/EDIT INTEL<br>> DBL-CLICK TO DELETE<br>> <span style="color:#ffcc00;">PRESS 'L' FOR SECURE LOCKDOWN</span>
-    </div>
-    <div class="hud-panel legend-box" id="legendBox">
-        <strong style="color:#6DA4CF;">TACTICAL LEGEND</strong><hr>
-        <div class="legend-item"><span class="legend-dot" style="color:#0066ff;">●</span> 501st Legion</div>
-        <div class="legend-item"><span class="legend-dot" style="color:#ff1a1a;">●</span> Hostile / OPFOR</div>
-        <div class="legend-item"><span class="legend-dot" style="color:#00e64d;">●</span> Allied Forces</div>
-        <div class="legend-item"><span class="legend-dot" style="color:#ffcc00;">●</span> Primary Target</div>
-        <div class="legend-item"><span class="legend-dot" style="color:#ffffff;">●</span> Neutral / Unknown</div>
-    </div>
-    <div class="hud-panel" id="credits-box">
-        Created by: <span style="color:#d1e8ff;">CT-4577 "Anzean" (w_rcrime)</span><br>
-        Generated by: <span style="color:#d1e8ff;">Google Gemini</span>
+    <div id="aspect-ratio-forcer">
+        <canvas id="battlefield"></canvas>
+        <div class="hud-panel controls-hint" id="hintBox">
+            <b style="color:#6DA4CF;">OP-MODE: MOVE</b><br>> DRAG ENTITIES TO REPOSITION<br>> RIGHT-CLICK TO ADD/EDIT INTEL<br>> DBL-CLICK TO DELETE<br>> <span style="color:#ffcc00;">PRESS 'L' FOR SECURE LOCKDOWN</span>
+        </div>
+        <div class="hud-panel legend-box" id="legendBox">
+            <strong style="color:#6DA4CF;">TACTICAL LEGEND</strong><hr>
+            <div class="legend-item"><span class="legend-dot" style="color:#0033aa;">●</span> 501st Legion</div>
+            <div class="legend-item"><span class="legend-dot" style="color:#ff1a1a;">●</span> Hostile / OPFOR</div>
+            <div class="legend-item"><span class="legend-dot" style="color:#00e64d;">●</span> Allied Forces</div>
+            <div class="legend-item"><span class="legend-dot" style="color:#ffcc00;">●</span> Primary Target</div>
+            <div class="legend-item"><span class="legend-dot" style="color:#ffffff;">●</span> Neutral / Unknown</div>
+        </div>
+        <div class="hud-panel" id="credits-box">
+            Created by: <span style="color:#d1e8ff;">CT-4577 "Anzean" (w_rcrime)</span><br>
+            Generated by: <span style="color:#d1e8ff;">Google Gemini</span>
+        </div>
     </div>
 </div>
 
@@ -566,7 +583,7 @@
     function addUnit(type) {
         if (isSecureLocked || transitionState > 0) return;
         let color = '#ffffff'; 
-        if (type === '501st') color = '#0066ff'; 
+        if (type === '501st') color = '#0033aa'; 
         if (type === 'enemy') color = '#ff1a1a'; 
         if (type === 'ally') color = '#00e64d'; 
         if (type === 'objective') color = '#ffcc00';
@@ -723,8 +740,12 @@
         const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist < 5) return; 
         context.save(); context.translate(x1, y1); context.rotate(Math.atan2(dy, dx));
         context.beginPath(); context.moveTo(0, 0); context.lineTo(dist, 0);
-        context.strokeStyle = color; context.globalAlpha = invisible ? 0.1 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
-        context.globalAlpha = invisible ? 0.2 : 1.0; const chevSpace = 35 * scale; const offset = (timeParam * 0.025 * scale) % chevSpace;
+        
+        /* Adjusted the alpha levels for "invisible" mode to be extremely transparent */
+        context.strokeStyle = color; context.globalAlpha = invisible ? 0.05 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
+        context.globalAlpha = invisible ? 0.08 : 1.0; 
+        
+        const chevSpace = 35 * scale; const offset = (timeParam * 0.025 * scale) % chevSpace;
         context.lineWidth = (bold ? 5 : 2.5) * scale; context.lineCap = 'square'; context.lineJoin = 'miter';
         context.beginPath(); context.rect(0, -15*scale, dist, 30*scale); context.clip();
         for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) {
