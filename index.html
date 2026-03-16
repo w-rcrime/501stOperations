@@ -41,7 +41,6 @@
             box-sizing: border-box;
         }
 
-        /* NEW: The Picture Frame for 16:9 ratio */
         #aspect-ratio-forcer {
             position: relative;
             aspect-ratio: 16 / 9;
@@ -120,13 +119,13 @@
         <div class="tool-group">
             <span style="font-size:0.8em; color:#6DA4CF;">PROPERTIES:</span>
             <select id="colorSelect" title="Quick Color Preset">
-                <option value="#0033aa">Blue</option>
+                <option value="#005ce6">Blue</option>
                 <option value="#ff1a1a">Red</option>
                 <option value="#00e64d">Green</option>
                 <option value="#ffcc00">Yellow</option>
                 <option value="#ffffff">White</option>
             </select>
-            <input type="color" id="customColorPicker" value="#0033aa" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
+            <input type="color" id="customColorPicker" value="#005ce6" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
             <div class="separator" style="margin: 0 2px;"></div>
             
             <select id="unitShapeSelect" title="Unit Shape">
@@ -145,7 +144,7 @@
         <div class="separator"></div>
         <div class="tool-group">
             <span style="font-size:0.8em; color:#6DA4CF;">DEPLOY:</span>
-            <button onclick="addUnit('501st')" style="color: #0033aa;">501st</button>
+            <button onclick="addUnit('501st')" style="color: #005ce6;">501st</button>
             <button onclick="addUnit('enemy')" style="color: #ff1a1a;">OPFOR</button>
             <button onclick="addUnit('ally')" style="color: #00e64d;">ALLY</button>
             <button onclick="addUnit('objective')" style="color: #ffcc00;">TGT</button>
@@ -189,7 +188,7 @@
         </div>
         <div class="hud-panel legend-box" id="legendBox">
             <strong style="color:#6DA4CF;">TACTICAL LEGEND</strong><hr>
-            <div class="legend-item"><span class="legend-dot" style="color:#0033aa;">●</span> 501st Legion</div>
+            <div class="legend-item"><span class="legend-dot" style="color:#005ce6;">●</span> 501st Legion</div>
             <div class="legend-item"><span class="legend-dot" style="color:#ff1a1a;">●</span> Hostile / OPFOR</div>
             <div class="legend-item"><span class="legend-dot" style="color:#00e64d;">●</span> Allied Forces</div>
             <div class="legend-item"><span class="legend-dot" style="color:#ffcc00;">●</span> Primary Target</div>
@@ -270,18 +269,20 @@
         const phase = phases[currentPhaseIdx];
         
         const hitText = [...(phase.texts || [])].reverse().find(t => {
-            const fontSize = Math.floor(16 * t.scale); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
-            const w = ctx.measureText(t.text).width; const boxPadding = 8 * t.scale; const boxH = fontSize * 1.5;
+            const sc = t.scale || 1.0;
+            const fontSize = Math.floor(16 * sc); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
+            const w = ctx.measureText(t.text).width; const boxPadding = 8 * sc; const boxH = fontSize * 1.5;
             return mx > t.x - w/2 - boxPadding && mx < t.x + w/2 + boxPadding && my > t.y - boxH + (fontSize*0.25) && my < t.y + (fontSize*0.5);
         }); if (hitText) return hitText;
 
         const hitCam = [...(phase.cameras || [])].reverse().find(c => Math.hypot(mx - c.x, my - c.y) <= 20); if (hitCam) return hitCam;
-        const hitUnit = [...(phase.units || [])].reverse().find(u => Math.hypot(mx - u.x, my - u.y) <= (16 * u.scale) + 10); if (hitUnit) return hitUnit;
+        const hitUnit = [...(phase.units || [])].reverse().find(u => Math.hypot(mx - u.x, my - u.y) <= (16 * (u.scale || 1.0)) + 10); if (hitUnit) return hitUnit;
 
         const hitLine = [...(phase.lines || [])].reverse().find(l => {
+            const sc = l.scale || 1.0;
             if (l.shape === 'multi') {
-                for(let i=0; i<l.points.length-1; i++) { if (distToSegmentSquared({x: mx, y: my}, l.points[i], l.points[i+1]) < Math.pow(15 * l.scale, 2)) return true; }
-            } else { if (distToSegmentSquared({x: mx, y: my}, {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}) < Math.pow(15 * l.scale, 2)) return true; }
+                for(let i=0; i<l.points.length-1; i++) { if (distToSegmentSquared({x: mx, y: my}, l.points[i], l.points[i+1]) < Math.pow(15 * sc, 2)) return true; }
+            } else { if (distToSegmentSquared({x: mx, y: my}, {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}) < Math.pow(15 * sc, 2)) return true; }
         }); if (hitLine) return hitLine;
 
         const hitDraw = [...(phase.drawings || [])].reverse().find(d => {
@@ -289,11 +290,12 @@
         }); if (hitDraw) return hitDraw;
 
         const hitZone = [...(phase.zones || [])].reverse().find(z => {
-            if (z.shape === 'circle') return Math.hypot(mx - z.x, my - z.y) <= z.r * z.scale;
-            else if (z.shape === 'rect') return mx >= Math.min(z.x, z.x + z.w * z.scale) && mx <= Math.max(z.x, z.x + z.w * z.scale) && my >= Math.min(z.y, z.y + z.h * z.scale) && my <= Math.max(z.y, z.y + z.h * z.scale);
+            const sc = z.scale || 1.0;
+            if (z.shape === 'circle') return Math.hypot(mx - z.x, my - z.y) <= z.r * sc;
+            else if (z.shape === 'rect') return mx >= Math.min(z.x, z.x + z.w * sc) && mx <= Math.max(z.x, z.x + z.w * sc) && my >= Math.min(z.y, z.y + z.h * sc) && my <= Math.max(z.y, z.y + z.h * sc);
             else if (z.shape === 'polygon') {
-                let p = new Path2D(); p.moveTo(z.x + z.points[0].x * z.scale, z.y + z.points[0].y * z.scale);
-                for(let i=1; i<z.points.length; i++) p.lineTo(z.x + z.points[i].x * z.scale, z.y + z.points[i].y * z.scale); p.closePath();
+                let p = new Path2D(); p.moveTo(z.x + z.points[0].x * sc, z.y + z.points[0].y * sc);
+                for(let i=1; i<z.points.length; i++) p.lineTo(z.x + z.points[i].x * sc, z.y + z.points[i].y * sc); p.closePath();
                 return ctx.isPointInPath(p, mx, my);
             }
         }); return hitZone || null;
@@ -583,7 +585,7 @@
     function addUnit(type) {
         if (isSecureLocked || transitionState > 0) return;
         let color = '#ffffff'; 
-        if (type === '501st') color = '#0033aa'; 
+        if (type === '501st') color = '#005ce6'; 
         if (type === 'enemy') color = '#ff1a1a'; 
         if (type === 'ally') color = '#00e64d'; 
         if (type === 'objective') color = '#ffcc00';
@@ -633,7 +635,7 @@
                     if (Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2) { phases[currentPhaseIdx].lines.push(currentMultiLine); currentMultiLine = null; } 
                     else { currentMultiLine.points.push({x: mouseX, y: mouseY}); }
                 }
-            } else { isDragging = true; currentLine = { x: mouseX, y: mouseY, x2: mouseX, y2: mouseY, color: mods.color, scale: 1.0, bold: mods.bold, invisible: isInv, description: "" }; }
+            } else { isDragging = true; currentLine = { x: mouseX, y: mouseY, x1: mouseX, y1: mouseY, x2: mouseX, y2: mouseY, color: mods.color, scale: 1.0, bold: mods.bold, invisible: isInv, description: "" }; }
         } else if (mode === 'draw') {
             isDragging = true; const mods = getModifiers(); currentDrawing = { points: [{x: mouseX, y: mouseY}], color: mods.color, bold: mods.bold, description: "" };
         } else if (mode === 'ping') {
@@ -741,7 +743,6 @@
         context.save(); context.translate(x1, y1); context.rotate(Math.atan2(dy, dx));
         context.beginPath(); context.moveTo(0, 0); context.lineTo(dist, 0);
         
-        /* Adjusted the alpha levels for "invisible" mode to be extremely transparent */
         context.strokeStyle = color; context.globalAlpha = invisible ? 0.05 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
         context.globalAlpha = invisible ? 0.08 : 1.0; 
         
@@ -791,49 +792,51 @@
 
     function drawTacticalElements(context, phaseData, timeParam) {
         (phaseData.zones || []).forEach(z => {
+            const zScale = z.scale || 1.0;
             context.save(); context.beginPath();
-            if (z.shape === 'circle') context.arc(z.x, z.y, z.r * z.scale, 0, Math.PI*2);
-            else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * z.scale, z.h * z.scale);
+            if (z.shape === 'circle') context.arc(z.x, z.y, z.r * zScale, 0, Math.PI*2);
+            else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * zScale, z.h * zScale);
             else if (z.shape === 'polygon') {
-                context.moveTo(z.x + z.points[0].x * z.scale, z.y + z.points[0].y * z.scale);
-                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * z.scale, z.y + z.points[i].y * z.scale);
+                context.moveTo(z.x + z.points[0].x * zScale, z.y + z.points[0].y * zScale);
+                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale);
                 context.closePath();
             }
             context.clip(); context.fillStyle = hexToRgba(z.color, 0.15); context.fill(); 
             if (z.striped) {
                 context.save(); let cx = z.x, cy = z.y, maxDim = 0;
-                if (z.shape === 'circle') maxDim = z.r * 2 * z.scale;
-                else { cx = z.x + (z.w * z.scale)/2; cy = z.y + (z.h * z.scale)/2; maxDim = Math.hypot(z.w * z.scale, z.h * z.scale) * 1.5; }
-                context.translate(cx, cy); context.rotate(-Math.PI / 4); context.strokeStyle = hexToRgba(z.color, 0.4); context.lineWidth = 12 * z.scale; 
-                const spacing = 24 * z.scale; const speed = 0.025 * z.scale; const offset = (timeParam * speed) % spacing;
+                if (z.shape === 'circle') maxDim = z.r * 2 * zScale;
+                else { cx = z.x + (z.w * zScale)/2; cy = z.y + (z.h * zScale)/2; maxDim = Math.hypot(z.w * zScale, z.h * zScale) * 1.5; }
+                context.translate(cx, cy); context.rotate(-Math.PI / 4); context.strokeStyle = hexToRgba(z.color, 0.4); context.lineWidth = 12 * zScale; 
+                const spacing = 24 * zScale; const speed = 0.025 * zScale; const offset = (timeParam * speed) % spacing;
                 context.beginPath(); 
                 for (let i = -maxDim; i <= maxDim; i += spacing) { context.moveTo(-maxDim, i + offset); context.lineTo(maxDim, i + offset); }
                 context.stroke(); context.restore();
             }
             context.restore(); 
             context.beginPath();
-            if (z.shape === 'circle') context.arc(z.x, z.y, z.r * z.scale, 0, Math.PI*2);
-            else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * z.scale, z.h * z.scale);
+            if (z.shape === 'circle') context.arc(z.x, z.y, z.r * zScale, 0, Math.PI*2);
+            else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * zScale, z.h * zScale);
             else if (z.shape === 'polygon') {
-                context.moveTo(z.x + z.points[0].x * z.scale, z.y + z.points[0].y * z.scale);
-                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * z.scale, z.y + z.points[i].y * z.scale); context.closePath();
+                context.moveTo(z.x + z.points[0].x * zScale, z.y + z.points[0].y * zScale);
+                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale); context.closePath();
             }
-            context.strokeStyle = z.color; context.lineWidth = (z.bold ? 4 : 2) * z.scale; context.stroke();
+            context.strokeStyle = z.color; context.lineWidth = (z.bold ? 4 : 2) * zScale; context.stroke();
             if (dragTarget === z && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
         (phaseData.lines || []).forEach(l => {
+            const lScale = l.scale || 1.0;
             if (isPlaying && l.invisible) return; // Stealth Hide
             if (dragTarget === l && !isPlaying) {
-                context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * l.scale;
+                context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * lScale;
                 context.beginPath(); 
                 if (l.shape === 'multi') { context.moveTo(l.points[0].x, l.points[0].y); for(let i=1; i<l.points.length; i++) context.lineTo(l.points[i].x, l.points[i].y); } 
                 else { context.moveTo(l.x1, l.y1); context.lineTo(l.x2, l.y2); }
                 context.stroke(); context.restore();
             }
             if (l.shape === 'multi') {
-                for(let i=0; i<l.points.length-1; i++) drawSegment(context, l.points[i].x, l.points[i].y, l.points[i+1].x, l.points[i+1].y, l.color, l.bold, l.scale, timeParam, l.invisible);
-            } else { drawSegment(context, l.x1, l.y1, l.x2, l.y2, l.color, l.bold, l.scale, timeParam, l.invisible); }
+                for(let i=0; i<l.points.length-1; i++) drawSegment(context, l.points[i].x, l.points[i].y, l.points[i+1].x, l.points[i+1].y, l.color, l.bold, lScale, timeParam, l.invisible);
+            } else { drawSegment(context, l.x1, l.y1, l.x2, l.y2, l.color, l.bold, lScale, timeParam, l.invisible); }
         });
 
         (phaseData.drawings || []).forEach(d => {
@@ -855,10 +858,11 @@
         });
 
         (phaseData.units || []).forEach(u => {
-            const currentSize = 16 * u.scale; const strokeW = (u.bold ? 4 : 2) * u.scale; const innerStrokeW = 1.5 * u.scale;
+            const uScale = u.scale || 1.0;
+            const currentSize = 16 * uScale; const strokeW = (u.bold ? 4 : 2) * uScale; const innerStrokeW = 1.5 * uScale;
             let cx = u.x; let cy = u.y; let rot = u.angle || 0;
             if (activeAnimations.has(u)) { let anim = activeAnimations.get(u); cx = anim.pos.x; cy = anim.pos.y; rot = anim.angle; }
-            context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, cx, cy + 4 * u.scale, currentSize, rot); context.fill();
+            context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, cx, cy + 4 * uScale, currentSize, rot); context.fill();
             context.fillStyle = u.color; drawShape(context, u.shape, cx, cy, currentSize, rot); context.fill();
             context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
             context.save(); context.translate(cx, cy); context.rotate(rot); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown);
@@ -867,9 +871,10 @@
         });
 
         (phaseData.texts || []).forEach(t => {
-            context.save(); const fontSize = Math.floor(16 * t.scale); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
-            const w = context.measureText(t.text).width; const boxPad = 8 * t.scale; const boxH = fontSize * 1.5; context.translate(t.x, t.y);
-            if (t.boxed) { ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * t.scale; ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); }
+            const tScale = t.scale || 1.0;
+            context.save(); const fontSize = Math.floor(16 * tScale); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
+            const w = context.measureText(t.text).width; const boxPad = 8 * tScale; const boxH = fontSize * 1.5; context.translate(t.x, t.y);
+            if (t.boxed) { ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * tScale; ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); }
             context.fillStyle = t.color; context.textAlign = "center"; context.fillText(t.text, 0, 0);
             if (dragTarget === t && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
             context.restore();
@@ -964,13 +969,32 @@
             ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); }
             ctx.restore();
         }
+
+        if (currentZone && transitionState === 0) {
+            ctx.save();
+            ctx.beginPath();
+            if (currentZone.shape === 'circle') ctx.arc(currentZone.x, currentZone.y, currentZone.r, 0, Math.PI*2);
+            else if (currentZone.shape === 'rect') ctx.rect(currentZone.x, currentZone.y, currentZone.w, currentZone.h);
+            ctx.clip(); ctx.fillStyle = hexToRgba(currentZone.color, 0.15); ctx.fill(); 
+            if (currentZone.striped) {
+                ctx.save(); let cx = currentZone.x, cy = currentZone.y, maxDim = 0;
+                if (currentZone.shape === 'circle') maxDim = currentZone.r * 2;
+                else { cx = currentZone.x + currentZone.w/2; cy = currentZone.y + currentZone.h/2; maxDim = Math.hypot(currentZone.w, currentZone.h) * 1.5; }
+                ctx.translate(cx, cy); ctx.rotate(-Math.PI / 4); ctx.strokeStyle = hexToRgba(currentZone.color, 0.4); ctx.lineWidth = 12; 
+                const spacing = 24; const speed = 0.025; const offset = (time * speed) % spacing;
+                ctx.beginPath(); 
+                for (let i = -maxDim; i <= maxDim; i += spacing) { ctx.moveTo(-maxDim, i + offset); ctx.lineTo(maxDim, i + offset); }
+                ctx.stroke(); ctx.restore();
+            }
+            ctx.restore();
+            ctx.beginPath();
+            if (currentZone.shape === 'circle') ctx.arc(currentZone.x, currentZone.y, currentZone.r, 0, Math.PI*2);
+            else if (currentZone.shape === 'rect') ctx.rect(currentZone.x, currentZone.y, currentZone.w, currentZone.h);
+            ctx.strokeStyle = currentZone.color; ctx.lineWidth = currentZone.bold ? 4 : 2; ctx.stroke();
+        }
         
         if (currentLine && transitionState === 0) { 
-            ctx.save();
-            ctx.globalAlpha = currentLine.invisible ? 0.3 : 1.0;
-            ctx.beginPath(); ctx.moveTo(currentLine.x1, currentLine.y1); ctx.lineTo(currentLine.x2, currentLine.y2); 
-            ctx.strokeStyle = currentLine.color; ctx.lineWidth = 4 * currentLine.scale; ctx.stroke(); 
-            ctx.restore();
+            drawSegment(ctx, currentLine.x1, currentLine.y1, currentLine.x2, currentLine.y2, currentLine.color, currentLine.bold, currentLine.scale, time, currentLine.invisible);
         }
         
         if (currentDrawing && transitionState === 0) { 
@@ -980,22 +1004,13 @@
         }
 
         if (currentMultiLine && transitionState === 0) {
-            const trAlpha = currentMultiLine.invisible ? 0.1 : 0.25;
-            const chAlpha = currentMultiLine.invisible ? 0.2 : 1.0;
-
             for (let i = 0; i < currentMultiLine.points.length - 1; i++) {
-                const p1 = currentMultiLine.points[i]; const p2 = currentMultiLine.points[i+1];
-                const dx = p2.x - p1.x; const dy = p2.y - p1.y; const dist = Math.hypot(dx, dy);
-                if (dist > 5) {
-                    ctx.save(); ctx.translate(p1.x, p1.y); ctx.rotate(Math.atan2(dy, dx)); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(dist, 0); ctx.strokeStyle = currentMultiLine.color; ctx.globalAlpha = trAlpha; ctx.lineWidth = (currentMultiLine.bold ? 8 : 4) * currentMultiLine.scale; ctx.stroke(); ctx.globalAlpha = chAlpha; const chevSpace = 35 * currentMultiLine.scale; const offset = (time * 0.025 * currentMultiLine.scale) % chevSpace; ctx.lineWidth = (currentMultiLine.bold ? 5 : 2.5) * currentMultiLine.scale; ctx.lineCap = 'square'; ctx.lineJoin = 'miter'; ctx.beginPath(); ctx.rect(0, -15*currentMultiLine.scale, dist, 30*currentMultiLine.scale); ctx.clip(); for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) { ctx.beginPath(); ctx.moveTo(x - 12*currentMultiLine.scale, -8*currentMultiLine.scale); ctx.lineTo(x, 0); ctx.lineTo(x - 12*currentMultiLine.scale, 8*currentMultiLine.scale); ctx.stroke(); } ctx.restore();
-                }
+                drawSegment(ctx, currentMultiLine.points[i].x, currentMultiLine.points[i].y, currentMultiLine.points[i+1].x, currentMultiLine.points[i+1].y, currentMultiLine.color, currentMultiLine.bold, currentMultiLine.scale, time, currentMultiLine.invisible);
             }
             const lastPt = currentMultiLine.points[currentMultiLine.points.length - 1];
-            const dx = mouseX - lastPt.x; const dy = mouseY - lastPt.y; const dist = Math.hypot(dx, dy);
-            if (dist > 5) {
-                ctx.save(); ctx.translate(lastPt.x, lastPt.y); ctx.rotate(Math.atan2(dy, dx)); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(dist, 0); ctx.strokeStyle = currentMultiLine.color; ctx.globalAlpha = trAlpha; ctx.lineWidth = (currentMultiLine.bold ? 8 : 4) * currentMultiLine.scale; ctx.stroke(); ctx.globalAlpha = chAlpha; const chevSpace = 35 * currentMultiLine.scale; const offset = (time * 0.025 * currentMultiLine.scale) % chevSpace; ctx.lineWidth = (currentMultiLine.bold ? 5 : 2.5) * currentMultiLine.scale; ctx.lineCap = 'square'; ctx.lineJoin = 'miter'; ctx.beginPath(); ctx.rect(0, -15*currentMultiLine.scale, dist, 30*currentMultiLine.scale); ctx.clip(); for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) { ctx.beginPath(); ctx.moveTo(x - 12*currentMultiLine.scale, -8*currentMultiLine.scale); ctx.lineTo(x, 0); ctx.lineTo(x - 12*currentMultiLine.scale, 8*currentMultiLine.scale); ctx.stroke(); } ctx.restore();
-            }
-            const canClose = dist < 20 && currentMultiLine.points.length >= 2;
+            drawSegment(ctx, lastPt.x, lastPt.y, mouseX, mouseY, currentMultiLine.color, currentMultiLine.bold, currentMultiLine.scale, time, currentMultiLine.invisible);
+            
+            const canClose = Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2;
             ctx.beginPath(); ctx.arc(lastPt.x, lastPt.y, 6, 0, Math.PI*2); ctx.fillStyle = canClose ? '#00ff00' : currentMultiLine.color;
             if (canClose) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10; } ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); } ctx.shadowBlur = 0;
         }
