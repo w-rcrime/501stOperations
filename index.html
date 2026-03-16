@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>501st Tactical Command</title>
+    <style>
+        body { margin: 0; font-family: 'Courier New', Courier, monospace; background: #0a0c0e; color: #d1e8ff; overflow: hidden; display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+        #toolbar { background: #141a20; padding: 10px 15px; display: flex; flex-direction: column; gap: 10px; border-bottom: 3px solid #6DA4CF; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }
+        .toolbar-row { display: flex; width: 100%; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .title { color: #6DA4CF; margin-right: 15px; font-size: 1.2em; text-transform: uppercase; letter-spacing: 2px; text-shadow: 1px 1px 0 #000; }
+        
+        button, select, .file-label { 
+            background: #1c2630; color: #d1e8ff; border: 1px solid #6DA4CF; padding: 6px 12px; 
+            cursor: pointer; font-weight: bold; font-family: inherit; font-size: 0.8em; 
+            text-transform: uppercase; letter-spacing: 1px; transition: all 0.1s; 
+            display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; 
+        }
+        button:hover, select:hover, .file-label:hover { background: #6DA4CF; color: #fff; }
+        button:active { transform: translateY(2px); }
+        button.active-mode { background: #345c7d; color: #fff; border-color: #6DA4CF; box-shadow: inset 0 0 8px rgba(0,0,0,0.5); }
+        
+        .separator { width: 2px; height: 25px; background: #6DA4CF; margin: 0 5px; opacity: 0.5; }
+        .tool-group { display: flex; align-items: center; gap: 6px; background: #10141a; padding: 4px 8px; border: 1px solid #6DA4CF; border-radius: 4px; }
+        .sys-group { margin-left: auto; display: flex; gap: 6px; }
+        
+        input[type="checkbox"] { accent-color: #6DA4CF; cursor: pointer; }
+        input[type="file"] { display: none; }
+        input[type="color"] { cursor: pointer; padding: 0; border: 1px solid #6DA4CF; border-radius: 2px; background: none; height: 24px; width: 24px; }
+        
+        #canvas-wrapper { 
+            flex-grow: 1; position: relative; background: #050608; 
+            background-image: radial-gradient(#151a25 1.5px, transparent 1.5px); 
+            background-size: 25px 25px; display: flex; justify-content: center; 
+            align-items: center; overflow: hidden; 
+        }
+        
+        canvas { 
+            display: block; background: #080a0d; border: 4px solid #6DA4CF; 
+            border-radius: 6px; box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 0 10px rgba(109, 164, 207, 0.4); 
+            cursor: crosshair; 
+            
+            /* DYNAMIC SCALING OPTIMIZATIONS */
+            width: 100%;
+            height: 100%;
+            max-width: calc(100% - 80px);
+            max-height: calc(100% - 80px);
+            object-fit: contain; 
+        }
+        
+        .hud-panel { position: absolute; background: rgba(10, 12, 16, 0.9); border: 1px solid #6DA4CF; pointer-events: none; box-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-transform: uppercase; letter-spacing: 1px; }
+        .controls-hint { bottom: 20px; left: 20px; padding: 12px 18px; font-size: 0.85em; border-left: 5px solid #6DA4CF; line-height: 1.6; }
+        .legend-box { top: 20px; right: 20px; padding: 15px; font-size: 0.85em; border-top: 5px solid #6DA4CF; min-width: 180px; }
+        .legend-box hr { border: none; border-bottom: 1px solid #6DA4CF; margin: 8px 0; }
+        .legend-item { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+        .legend-dot { font-size: 1.4em; line-height: 0.5; text-shadow: 0 0 5px currentColor; }
+        
+        #credits-box { bottom: 20px; right: 20px; padding: 10px 15px; font-size: 0.75em; border-right: 5px solid #6DA4CF; border-left: none; border-top: none; border-bottom: none; text-align: right; line-height: 1.6; color: #6DA4CF; }
+        @keyframes pulseRec { 0% { background-color: #1c2630; color: #ff4444; border-color: #ff4444; } 50% { background-color: #ff4444; color: #fff; border-color: #fff; } 100% { background-color: #1c2630; color: #ff4444; border-color: #ff4444; } }
+        .recording-active { animation: pulseRec 1.5s infinite; }
+    </style>
+</head>
+<body>
+
+<input type="file" id="cameraInput" accept="image/*" style="display:none;">
+
+<div id="toolbar">
+    <div class="toolbar-row">
+        <strong class="title">SYS-COM</strong>
+        <div class="tool-group" style="background:#0a0c0e;">
+            <span id="opNameDisplay" onclick="renameOp()" style="color:#6DA4CF; font-weight:bold; cursor:pointer; padding: 0 8px;" title="Click to rename operation">OP: UNNAMED</span>
+        </div>
+        <div class="separator"></div>
+        <div class="tool-group" style="background:#0a0c0e;">
+            <button onclick="prevPhase()" style="border:none; background:none; color:#6DA4CF;">[<]</button>
+            <span id="phaseDisplay" onclick="renamePhase()" style="color:#6DA4CF; font-weight:bold; min-width:80px; text-align:center; cursor:pointer;" title="Click to rename phase">PHASE 1</span>
+            <button onclick="nextPhase()" style="border:none; background:none; color:#6DA4CF;">[>]</button>
+            <button onclick="addPhase()" style="color:#ffcc00; border:none; background:none; padding:0 5px;" title="Duplicate to next phase">[+ COPY]</button>
+        </div>
+        <div class="separator"></div>
+        <button id="btnMove" class="active-mode" onclick="setMode('move')">MOVE</button>
+        <button id="btnResize" onclick="setMode('resize')">RESIZE</button>
+        <button id="btnRecolor" onclick="setMode('recolor')">RECOLOR</button>
+        <button id="btnEditText" onclick="setMode('edittext')">EDIT TXT</button>
+        <div class="separator"></div>
+        <button id="btnDraw" onclick="setMode('draw')">DRAW</button>
+        <button id="btnLine" onclick="setMode('line')">PATH</button>
+        <button id="btnZone" onclick="setMode('zone')">ZONE</button>
+        <button id="btnPing" onclick="setMode('ping')" style="color: #00e64d;">PING</button>
+        
+        <div class="sys-group">
+            <button id="btnGrid" onclick="toggleGrid()">GRID: OFF</button>
+            <label class="file-label">MAP <input type="file" id="bgInput" accept="image/*"></label>
+            <div class="separator" style="margin:0;"></div>
+            <button onclick="exportImage()" style="color: #00e64d;" title="Save Image">[ IMG ]</button>
+            <button id="btnPlay" onclick="togglePlayback()" style="color: #00e64d;" title="Animate Units along Paths">▶ PLAY</button>
+            <button id="btnStop" onclick="stopPlayback()" style="color: #ff4444; display: none;" title="Stop & Reset Animation">⏹ STOP</button>
+            <button id="btnRecord" onclick="toggleRecording()" style="color: #ff4444;" title="Record Cinematic Video">[ REC ANIM ]</button>
+            <button onclick="exportData()" style="color: #00a2ff;" title="Save JSON">[ SAVE ]</button>
+            <label class="file-label" style="color: #ffcc00;" title="Load JSON">LOAD <input type="file" id="dataInput" accept=".json"></label>
+            <button onclick="clearCanvas()" style="color:#ff4444;">WIPE</button>
+        </div>
+    </div>
+
+    <div class="toolbar-row">
+        <div class="tool-group">
+            <span style="font-size:0.8em; color:#6DA4CF;">PROPERTIES:</span>
+            <select id="colorSelect" title="Quick Color Preset">
+                <option value="#0066ff">Blue</option>
+                <option value="#ff1a1a">Red</option>
+                <option value="#00e64d">Green</option>
+                <option value="#ffcc00">Yellow</option>
+                <option value="#ffffff">White</option>
+            </select>
+            <input type="color" id="customColorPicker" value="#0066ff" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
+            <div class="separator" style="margin: 0 2px;"></div>
+            
+            <select id="unitShapeSelect" title="Unit Shape">
+                <option value="circle">● DOT</option>
+                <option value="square">■ SQR</option>
+                <option value="triangle">▲ TRI</option>
+                <option value="plane">✈ PLANE</option>
+            </select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="checkbox" id="boldCheck"> BOLD
+            </label>
+            <div class="separator" style="margin: 0 2px;"></div>
+            <span style="font-size:0.8em; color:#6DA4CF;">GRID COLOR:</span>
+            <input type="color" id="gridColorPicker" value="#6DA4CF" title="Grid Color">
+        </div>
+        <div class="separator"></div>
+        <div class="tool-group">
+            <span style="font-size:0.8em; color:#6DA4CF;">DEPLOY:</span>
+            <button onclick="addUnit('501st')" style="color: #0066ff;">501st</button>
+            <button onclick="addUnit('enemy')" style="color: #ff1a1a;">OPFOR</button>
+            <button onclick="addUnit('ally')" style="color: #00e64d;">ALLY</button>
+            <button onclick="addUnit('objective')" style="color: #ffcc00;">TGT</button>
+        </div>
+        <div class="separator"></div>
+        <div class="tool-group">
+            <button onclick="addText()">+ TEXT</button>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
+                <input type="checkbox" id="boxTextCheck" checked> BOXED
+            </label>
+            <button id="btnCamera" onclick="setMode('camera')" style="margin-left:5px; color:#ffcc00;">+ CAMERA VIEW</button>
+        </div>
+
+        <div class="tool-group" id="lineTools" style="display:none; margin-left:10px;">
+            <select id="lineShape">
+                <option value="single">/ SINGLE</option>
+                <option value="multi">/\ STENCIL</option>
+            </select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer; color:#ff1a1a;">
+                <input type="checkbox" id="pathInvisibleCheck"> INVISIBLE
+            </label>
+        </div>
+        <div class="tool-group" id="zoneTools" style="display:none; margin-left:10px;">
+            <select id="zoneShape">
+                <option value="circle">O CIRCLE</option>
+                <option value="rect">[] RECT</option>
+                <option value="polygon">⬠ STENCIL</option>
+            </select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
+                <input type="checkbox" id="zoneStripedCheck" checked> STRIPED
+            </label>
+        </div>
+    </div>
+</div>
+
+<div id="canvas-wrapper">
+    <canvas id="battlefield"></canvas>
+    <div class="hud-panel controls-hint" id="hintBox">
+        <b style="color:#6DA4CF;">OP-MODE: MOVE</b><br>> DRAG ENTITIES TO REPOSITION<br>> RIGHT-CLICK TO ADD/EDIT INTEL<br>> DBL-CLICK TO DELETE<br>> <span style="color:#ffcc00;">PRESS 'L' FOR SECURE LOCKDOWN</span>
+    </div>
+    <div class="hud-panel legend-box" id="legendBox">
+        <strong style="color:#6DA4CF;">TACTICAL LEGEND</strong><hr>
+        <div class="legend-item"><span class="legend-dot" style="color:#0066ff;">●</span> 501st Legion</div>
+        <div class="legend-item"><span class="legend-dot" style="color:#ff1a1a;">●</span> Hostile / OPFOR</div>
+        <div class="legend-item"><span class="legend-dot" style="color:#00e64d;">●</span> Allied Forces</div>
+        <div class="legend-item"><span class="legend-dot" style="color:#ffcc00;">●</span> Primary Target</div>
+        <div class="legend-item"><span class="legend-dot" style="color:#ffffff;">●</span> Neutral / Unknown</div>
+    </div>
+    <div class="hud-panel" id="credits-box">
+        Created by: <span style="color:#d1e8ff;">CT-4577 "Anzean" (w_rcrime)</span><br>
+        Generated by: <span style="color:#d1e8ff;">Google Gemini</span>
+    </div>
+</div>
+
+<script>
+    // --- CORE INITIALIZATION ---
+    const canvas = document.getElementById('battlefield');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1920; 
+    canvas.height = 1080;
+    
+    // --- GLOBAL STATE ---
+    let operationName = "OPERATION: UNNAMED";
+    let phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
+    let currentPhaseIdx = 0;
+    let mode = 'move'; let backgroundImage = null; let showGrid = false;
+    
+    // Interaction & Tool State
+    let isDragging = false; let dragTarget = null; 
+    let currentLine = null; let currentMultiLine = null; let currentZone = null; let currentPolygon = null; let currentDrawing = null; 
+    let activePings = []; let currentHoverTarget = null; 
+    let mouseX = -100; let mouseY = -100; let lastMouseX = 0; let lastMouseY = 0;
+    let startScale = 1.0; let startMouseX = 0; let pendingCamX = 0; let pendingCamY = 0;
+
+    // Media & Playback State
+    let mediaRecorder = null; let recordedChunks = []; let isRecording = false;
+    let isSecureLocked = false; 
+    let transitionState = 0; let transitionStartTime = null; let transitionAlpha = 0;
+    let transOldIdx = 0; let transNewIdx = 0; let transitionText = ""; let transitionCallback = null;
+    
+    // Advanced Playback Controls
+    let isPlaying = false; let isPaused = false; 
+    let playStartTime = 0; let pauseStartTime = 0; let totalPausedTime = 0;
+    const PLAY_DURATION = 4000;
+    let activeAnimations = new Map(); 
+
+    document.getElementById('colorSelect').addEventListener('change', function(e) { document.getElementById('customColorPicker').value = e.target.value; });
+
+    // --- MATH & CACHING OPTIMIZATIONS ---
+    const rgbaCache = {};
+    function hexToRgba(hex, alpha) {
+        const key = hex + alpha; if (rgbaCache[key]) return rgbaCache[key];
+        if(!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) return `rgba(255,255,255,${alpha})`;
+        let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); 
+        const val = `rgba(${r}, ${g}, ${b}, ${alpha})`; rgbaCache[key] = val; return val;
+    }
+
+    function distToSegmentSquared(p, v, w) {
+      let l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2); 
+      if (l2 === 0) return Math.pow(p.x - v.x, 2) + Math.pow(p.y - v.y, 2);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t)); 
+      return Math.pow(p.x - (v.x + t * (w.x - v.x)), 2) + Math.pow(p.y - (v.y + t * (w.y - v.y)), 2);
+    }
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect(); 
+        const scale = rect.width / canvas.width; 
+        return { 
+            x: (e.clientX - rect.left) / scale, 
+            y: (e.clientY - rect.top) / scale 
+        };
+    }
+
+    function getModifiers() { return { bold: document.getElementById('boldCheck').checked, color: document.getElementById('customColorPicker').value, shape: document.getElementById('unitShapeSelect').value }; }
+    function getColLabel(index) { let label = ''; let curr = index; while (curr >= 0) { label = String.fromCharCode(65 + (curr % 26)) + label; curr = Math.floor(curr / 26) - 1; } return label; }
+
+    // --- HIT DETECTION ---
+    function getHoveredObject(mx, my) { 
+        const phase = phases[currentPhaseIdx];
+        
+        const hitText = [...(phase.texts || [])].reverse().find(t => {
+            const fontSize = Math.floor(16 * t.scale); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
+            const w = ctx.measureText(t.text).width; const boxPadding = 8 * t.scale; const boxH = fontSize * 1.5;
+            return mx > t.x - w/2 - boxPadding && mx < t.x + w/2 + boxPadding && my > t.y - boxH + (fontSize*0.25) && my < t.y + (fontSize*0.5);
+        }); if (hitText) return hitText;
+
+        const hitCam = [...(phase.cameras || [])].reverse().find(c => Math.hypot(mx - c.x, my - c.y) <= 20); if (hitCam) return hitCam;
+        const hitUnit = [...(phase.units || [])].reverse().find(u => Math.hypot(mx - u.x, my - u.y) <= (16 * u.scale) + 10); if (hitUnit) return hitUnit;
+
+        const hitLine = [...(phase.lines || [])].reverse().find(l => {
+            if (l.shape === 'multi') {
+                for(let i=0; i<l.points.length-1; i++) { if (distToSegmentSquared({x: mx, y: my}, l.points[i], l.points[i+1]) < Math.pow(15 * l.scale, 2)) return true; }
+            } else { if (distToSegmentSquared({x: mx, y: my}, {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}) < Math.pow(15 * l.scale, 2)) return true; }
+        }); if (hitLine) return hitLine;
+
+        const hitDraw = [...(phase.drawings || [])].reverse().find(d => {
+            for(let i=0; i<d.points.length-1; i++) { if(distToSegmentSquared({x: mx, y: my}, d.points[i], d.points[i+1]) < 100) return true; }
+        }); if (hitDraw) return hitDraw;
+
+        const hitZone = [...(phase.zones || [])].reverse().find(z => {
+            if (z.shape === 'circle') return Math.hypot(mx - z.x, my - z.y) <= z.r * z.scale;
+            else if (z.shape === 'rect') return mx >= Math.min(z.x, z.x + z.w * z.scale) && mx <= Math.max(z.x, z.x + z.w * z.scale) && my >= Math.min(z.y, z.y + z.h * z.scale) && my <= Math.max(z.y, z.y + z.h * z.scale);
+            else if (z.shape === 'polygon') {
+                let p = new Path2D(); p.moveTo(z.x + z.points[0].x * z.scale, z.y + z.points[0].y * z.scale);
+                for(let i=1; i<z.points.length; i++) p.lineTo(z.x + z.points[i].x * z.scale, z.y + z.points[i].y * z.scale); p.closePath();
+                return ctx.isPointInPath(p, mx, my);
+            }
+        }); return hitZone || null;
+    }
+
+    // --- PHASE & STATE CONTROL ---
+    function renameOp() { if (transitionState > 0 || isPlaying) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } }
+    function syncPhasePointers() { document.getElementById('phaseDisplay').innerText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+    function renamePhase() { if (transitionState > 0 || isPlaying) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } }
+    function resetInteractions() { dragTarget = null; currentPolygon = null; currentLine = null; currentMultiLine = null; currentZone = null; currentDrawing = null; isDragging = false; currentHoverTarget = null; }
+
+    function triggerSmoothTransition(newIdx) { 
+        if (transitionState > 0) return; 
+        if (isPlaying) stopPlayback(); 
+        transOldIdx = currentPhaseIdx; transNewIdx = newIdx; transitionText = phases[newIdx].name || `PHASE ${newIdx + 1}`; 
+        transitionState = 1; transitionStartTime = null; resetInteractions(); 
+    }
+    
+    function runTransition(phaseText, callback) { 
+        if (transitionState > 0) return; 
+        if (isPlaying) stopPlayback();
+        transitionText = phaseText; transitionCallback = callback; transitionState = 3; 
+        transitionStartTime = null; resetInteractions(); 
+    }
+    
+    function addPhase() {
+        if (transitionState > 0) return; 
+        const current = phases[currentPhaseIdx];
+        
+        let newUnits = JSON.parse(JSON.stringify(current.units || []));
+        if (isPlaying) {
+            newUnits.forEach((u, i) => {
+                const origUnit = current.units[i];
+                if (activeAnimations.has(origUnit)) {
+                    const anim = activeAnimations.get(origUnit);
+                    u.x = anim.pos.x;
+                    u.y = anim.pos.y;
+                    u.angle = anim.angle; 
+                }
+            });
+        }
+        
+        phases.push({ 
+            name: `PHASE ${phases.length + 1}`, 
+            units: newUnits, 
+            lines: JSON.parse(JSON.stringify(current.lines || [])), 
+            texts: JSON.parse(JSON.stringify(current.texts || [])), 
+            zones: JSON.parse(JSON.stringify(current.zones || [])), 
+            drawings: JSON.parse(JSON.stringify(current.drawings || [])), 
+            cameras: JSON.parse(JSON.stringify(current.cameras || [])) 
+        });
+        triggerSmoothTransition(phases.length - 1);
+    }
+
+    function nextPhase() { 
+        if (transitionState === 0 && !isPlaying && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); 
+    }
+    
+    function prevPhase() { 
+        if (transitionState === 0 && !isPlaying && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); 
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'l' && transitionState === 0) {
+            isSecureLocked = !isSecureLocked; 
+            document.getElementById('legendBox').style.display = isSecureLocked ? 'none' : 'block'; 
+            document.getElementById('credits-box').style.display = isSecureLocked ? 'none' : 'block'; 
+            if (isSecureLocked) resetInteractions();
+        }
+    });
+
+    // --- ANIMATION CONTROLS ---
+    function togglePlayback() {
+        if (isSecureLocked || transitionState > 0) return;
+        const btnPlay = document.getElementById('btnPlay');
+        const btnStop = document.getElementById('btnStop');
+        
+        if (!isPlaying) {
+            activeAnimations.clear();
+            const phase = phases[currentPhaseIdx];
+            
+            (phase.units || []).forEach(u => {
+                let targetLine = null;
+                for (let l of (phase.lines || [])) {
+                    let pts = l.shape === 'multi' ? l.points : [{x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}];
+                    if(pts.length < 2) continue;
+                    if (Math.hypot(u.x - pts[0].x, u.y - pts[0].y) < 30) { targetLine = pts; break; }
+                    if (Math.hypot(u.x - pts[pts.length-1].x, u.y - pts[pts.length-1].y) < 30) { targetLine = [...pts].reverse(); break; }
+                }
+                
+                if (targetLine) {
+                    let lengths = []; let total = 0;
+                    for(let i=0; i<targetLine.length-1; i++) {
+                        let d = Math.hypot(targetLine[i+1].x - targetLine[i].x, targetLine[i+1].y - targetLine[i].y);
+                        lengths.push(d); total += d;
+                    }
+                    let initAngle = Math.atan2(targetLine[1].y - targetLine[0].y, targetLine[1].x - targetLine[0].x) + Math.PI/2;
+                    activeAnimations.set(u, { path: targetLine, lengths, total, pos: {x: u.x, y: u.y}, angle: initAngle });
+                }
+            });
+            
+            isPlaying = true; 
+            isPaused = false;
+            totalPausedTime = 0;
+            playStartTime = performance.now();
+            
+            btnPlay.style.color = '#ffcc00'; 
+            btnPlay.innerText = '|| PAUSE';
+            btnStop.style.display = 'inline-flex';
+            setMode('move'); resetInteractions();
+        } else {
+            if (isPaused) {
+                isPaused = false;
+                totalPausedTime += (performance.now() - pauseStartTime);
+                btnPlay.style.color = '#ffcc00'; 
+                btnPlay.innerText = '|| PAUSE';
+            } else {
+                isPaused = true;
+                pauseStartTime = performance.now();
+                btnPlay.style.color = '#00e64d'; 
+                btnPlay.innerText = '▶ RESUME';
+            }
+        }
+    }
+
+    function stopPlayback() {
+        isPlaying = false; 
+        isPaused = false;
+        activeAnimations.clear();
+        
+        const btnPlay = document.getElementById('btnPlay');
+        const btnStop = document.getElementById('btnStop');
+        
+        btnPlay.style.color = '#00e64d'; 
+        btnPlay.innerText = '▶ PLAY';
+        btnStop.style.display = 'none';
+    }
+
+    // --- SYSTEM I/O ---
+    document.getElementById('cameraInput').addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return; 
+        const reader = new FileReader();
+        reader.onload = event => { 
+            if(!phases[currentPhaseIdx].cameras) phases[currentPhaseIdx].cameras = []; 
+            phases[currentPhaseIdx].cameras.push({ x: pendingCamX, y: pendingCamY, color: getModifiers().color, imgData: event.target.result, description: "GROUND VIEW" }); 
+        };
+        reader.readAsDataURL(file); e.target.value = ''; 
+    });
+
+    document.getElementById('bgInput').addEventListener('change', (e) => {
+        if (transitionState > 0) return; 
+        const file = e.target.files[0]; if (!file) return; 
+        const reader = new FileReader();
+        reader.onload = (event) => { 
+            const img = new Image(); 
+            img.onload = () => { backgroundImage = img; }; 
+            img.src = event.target.result; 
+        }; 
+        reader.readAsDataURL(file); e.target.value = ''; 
+    });
+
+    document.getElementById('dataInput').addEventListener('change', (e) => {
+        if (transitionState > 0) return; 
+        const file = e.target.files[0]; if (!file) return; 
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (data.opName) { operationName = data.opName; document.getElementById('opNameDisplay').innerText = operationName; }
+                if (data.phases) { phases = data.phases; } else { phases = [{ name: "PHASE 1", units: data.units || [], lines: data.lines || [], texts: data.texts || [], zones: data.zones || [], drawings: [], cameras: [] }]; }
+                phases.forEach(p => { if(!p.drawings) p.drawings = []; if(!p.cameras) p.cameras = []; });
+                currentPhaseIdx = 0; syncPhasePointers(); showGrid = data.showGrid || false;
+                if (data.gridColor) document.getElementById('gridColorPicker').value = data.gridColor;
+                
+                const btn = document.getElementById('btnGrid'); 
+                if (showGrid) { btn.innerText = 'GRID: ON'; btn.classList.add('active-mode'); } 
+                else { btn.innerText = 'GRID: OFF'; btn.classList.remove('active-mode'); }
+                
+                if (data.bgImg) { const img = new Image(); img.onload = () => { backgroundImage = img; }; img.src = data.bgImg; } 
+                else backgroundImage = null;
+                
+                if (isPlaying) stopPlayback();
+                runTransition("DATA LOADED", () => {});
+            } catch (err) { alert("SYS ERROR: Project file is corrupted."); }
+        }; reader.readAsText(file); e.target.value = ''; 
+    });
+
+    function exportImage() {
+        if (isSecureLocked || transitionState > 0) return; resetInteractions();
+        setTimeout(() => { 
+            try { 
+                let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
+                const link = document.createElement('a'); link.download = `${safeOp}_${phases[currentPhaseIdx].name}.png`; 
+                link.href = canvas.toDataURL("image/png"); link.click(); 
+            } catch (e) { alert("SECURITY OVERRIDE: Cannot export image. Use Print Screen."); } 
+        }, 50);
+    }
+    
+    function exportData() {
+        if (transitionState > 0) return;
+        const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value };
+        const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); 
+        const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); 
+        let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        link.download = `${safeOp}_data.json`; link.href = url; link.click(); URL.revokeObjectURL(url);
+    }
+    
+    function clearCanvas() { 
+        if(transitionState > 0) return; 
+        if(confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
+            phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
+            currentPhaseIdx = 0; syncPhasePointers(); backgroundImage = null; resetInteractions(); 
+            if(isPlaying) stopPlayback(); 
+        } 
+    }
+
+    function toggleRecording() {
+        if (isSecureLocked || transitionState > 0) return; 
+        const btnRecord = document.getElementById('btnRecord');
+        
+        if (!isRecording) {
+            resetInteractions();
+            const stream = canvas.captureStream(30); 
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            
+            mediaRecorder.ondataavailable = function(e) { 
+                if (e.data.size > 0) recordedChunks.push(e.data); 
+            };
+            mediaRecorder.onstop = function() {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' }); 
+                recordedChunks = []; const url = URL.createObjectURL(blob); const link = document.createElement('a'); 
+                let safeName = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
+                link.href = url; link.download = `${safeName}_briefing.webm`; link.click(); URL.revokeObjectURL(url);
+            }; 
+            mediaRecorder.start(); isRecording = true; 
+            btnRecord.classList.add('recording-active'); btnRecord.innerText = '[ STOP REC ]';
+        } else { 
+            mediaRecorder.stop(); isRecording = false; 
+            btnRecord.classList.remove('recording-active'); btnRecord.innerText = '[ REC ANIM ]'; 
+        }
+    }
+
+    // --- UI TOOLS ---
+    function toggleGrid() {
+        if (transitionState > 0) return; 
+        showGrid = !showGrid; const btn = document.getElementById('btnGrid'); 
+        btn.innerText = showGrid ? 'GRID: ON' : 'GRID: OFF'; 
+        if (showGrid) btn.classList.add('active-mode'); else btn.classList.remove('active-mode');
+    }
+
+    function setMode(newMode) {
+        if (transitionState > 0) return; 
+        mode = newMode; currentPolygon = null; currentMultiLine = null;
+        
+        const hintBox = document.getElementById('hintBox'); 
+        const zoneTools = document.getElementById('zoneTools'); 
+        const lineTools = document.getElementById('lineTools');
+        
+        ['btnMove', 'btnResize', 'btnRecolor', 'btnEditText', 'btnDraw', 'btnLine', 'btnZone', 'btnPing', 'btnCamera'].forEach(id => { 
+            const el = document.getElementById(id); if (el) el.classList.remove('active-mode'); 
+        });
+        
+        zoneTools.style.display = 'none'; lineTools.style.display = 'none';
+
+        const modeData = {
+            'move': {c: '#6DA4CF', t: 'OP-MODE: MOVE<br>> DRAG ENTITIES TO REPOSITION<br>> RIGHT-CLICK TO ADD INTEL<br>> DBL-CLICK TO DELETE'},
+            'resize': {c: '#ffcc00', t: 'OP-MODE: RESIZE<br>> CLICK AND DRAG <b>RIGHT</b> TO ENLARGE | <b>LEFT</b> TO SHRINK'},
+            'recolor': {c: '#ffffff', t: 'OP-MODE: RECOLOR<br>> SELECT COLOR FROM THE TOP BAR<br>> CLICK ANY ENTITY TO APPLY'},
+            'edittext': {c: '#ffffff', t: 'OP-MODE: EDIT TXT<br>> CLICK ANY TEXT BOX TO UPDATE ITS DESIGNATION'},
+            'draw': {c: '#ff1a1a', t: 'OP-MODE: FREEHAND DRAW<br>> CLICK AND DRAG TO DRAW CUSTOM MARKINGS<br>> RIGHT-CLICK TO ADD INTEL'},
+            'line': {c: '#ff1a1a', t: 'OP-MODE: TACTICAL PATH<br>> SINGLE: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK LAST POINT TO FINISH<br>> RIGHT-CLICK TO ADD INTEL'},
+            'zone': {c: '#00e64d', t: 'OP-MODE: SECURE ZONE<br>> CIRCLE/RECT: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK ORIGIN TO CLOSE'},
+            'ping': {c: '#00e64d', t: 'OP-MODE: PING<br>> CLICK TO SEND A TEMPORARY RADAR PING TO YOUR SQUAD'},
+            'camera': {c: '#ffcc00', t: 'OP-MODE: CAMERA VIEW<br>> CLICK ON THE MAP TO PLACE A GROUND CAMERA<br>> YOU WILL BE PROMPTED TO UPLOAD A REFERENCE IMAGE'}
+        };
+
+        if (modeData[mode]) {
+            let btnId = 'btn' + mode.charAt(0).toUpperCase() + mode.slice(1); 
+            if(btnId === 'btnEdittext') btnId = 'btnEditText';
+            const btn = document.getElementById(btnId); if(btn) btn.classList.add('active-mode');
+            hintBox.innerHTML = `<b style='color:${modeData[mode].c};'>${modeData[mode].t}</b>`; hintBox.style.borderLeftColor = modeData[mode].c;
+        }
+        if (mode === 'zone') zoneTools.style.display = 'inline-flex';
+        if (mode === 'line') lineTools.style.display = 'inline-flex';
+    }
+
+    function addUnit(type) {
+        if (isSecureLocked || transitionState > 0) return;
+        let color = '#ffffff'; 
+        if (type === '501st') color = '#0066ff'; 
+        if (type === 'enemy') color = '#ff1a1a'; 
+        if (type === 'ally') color = '#00e64d'; 
+        if (type === 'objective') color = '#ffcc00';
+        
+        const mods = getModifiers(); 
+        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: mods.shape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "" });
+        setMode('move');
+    }
+    
+    function addText() {
+        if (isSecureLocked || transitionState > 0) return;
+        const txt = prompt("INPUT TACTICAL DESIGNATION:"); const mods = getModifiers();
+        if (txt && txt.trim() !== "") { phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, scale: 1.0, bold: mods.bold, description: "" }); setMode('move'); }
+    }
+
+    // --- MOUSE EVENTS ---
+    canvas.addEventListener('contextmenu', e => {
+        e.preventDefault(); if (isSecureLocked || transitionState > 0) return;
+        if (currentPolygon) { currentPolygon = null; return; }
+        if (currentMultiLine) { currentMultiLine = null; return; }
+        if (currentDrawing) { currentDrawing = null; isDragging = false; return; }
+        
+        if (currentHoverTarget) {
+            const newDesc = prompt("ENTER INTEL (DESCRIPTION) FOR THIS OBJECT:", currentHoverTarget.description || "");
+            if (newDesc !== null) currentHoverTarget.description = newDesc.trim();
+        } else alert("NO ENTITY DETECTED. Right-click directly on an object to attach intel.");
+    });
+
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 0 || isSecureLocked || transitionState > 0) return; 
+        const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
+        
+        if (mode === 'move' || mode === 'resize') {
+            dragTarget = currentHoverTarget; 
+            if (dragTarget) { isDragging = true; startScale = dragTarget.scale || 1.0; startMouseX = mouseX; lastMouseX = mouseX; lastMouseY = mouseY; }
+        } else if (mode === 'recolor') {
+            if (currentHoverTarget) currentHoverTarget.color = document.getElementById('customColorPicker').value;
+        } else if (mode === 'edittext') {
+            if (currentHoverTarget && currentHoverTarget.text !== undefined) { const newText = prompt("UPDATE TACTICAL DESIGNATION:", currentHoverTarget.text); if (newText !== null && newText.trim() !== "") currentHoverTarget.text = newText.trim().toUpperCase(); }
+        } else if (mode === 'line') {
+            const lShape = document.getElementById('lineShape').value; const mods = getModifiers();
+            const isInv = document.getElementById('pathInvisibleCheck').checked;
+            if (lShape === 'multi') {
+                if (!currentMultiLine) { currentMultiLine = { shape: 'multi', points: [{x: mouseX, y: mouseY}], color: mods.color, scale: 1.0, bold: mods.bold, invisible: isInv, description: "" }; } 
+                else {
+                    const lastPt = currentMultiLine.points[currentMultiLine.points.length - 1];
+                    if (Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2) { phases[currentPhaseIdx].lines.push(currentMultiLine); currentMultiLine = null; } 
+                    else { currentMultiLine.points.push({x: mouseX, y: mouseY}); }
+                }
+            } else { isDragging = true; currentLine = { x: mouseX, y: mouseY, x2: mouseX, y2: mouseY, color: mods.color, scale: 1.0, bold: mods.bold, invisible: isInv, description: "" }; }
+        } else if (mode === 'draw') {
+            isDragging = true; const mods = getModifiers(); currentDrawing = { points: [{x: mouseX, y: mouseY}], color: mods.color, bold: mods.bold, description: "" };
+        } else if (mode === 'ping') {
+            activePings.push({ x: mouseX, y: mouseY, radius: 0, alpha: 1, color: getModifiers().color });
+        } else if (mode === 'camera') {
+            pendingCamX = mouseX; pendingCamY = mouseY; document.getElementById('cameraInput').click(); setMode('move'); 
+        } else if (mode === 'zone') {
+            const shapeType = document.getElementById('zoneShape').value; const mods = getModifiers(); const isStriped = document.getElementById('zoneStripedCheck').checked;
+            if (shapeType === 'polygon') {
+                if (!currentPolygon) currentPolygon = { points: [{x: mouseX, y: mouseY}], color: mods.color, bold: mods.bold, striped: isStriped };
+                else {
+                    const distToStart = Math.hypot(mouseX - currentPolygon.points[0].x, mouseY - currentPolygon.points[0].y);
+                    if (distToStart < 20 && currentPolygon.points.length >= 3) {
+                        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity; currentPolygon.points.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+                        let cx = (minX + maxX) / 2; let cy = (minY + maxY) / 2; let relPoints = currentPolygon.points.map(p => ({x: p.x - cx, y: p.y - cy}));
+                        phases[currentPhaseIdx].zones.push({ shape: 'polygon', x: cx, y: cy, w: maxX - minX, h: maxY - minY, points: relPoints, color: currentPolygon.color, bold: currentPolygon.bold, striped: currentPolygon.striped, scale: 1.0, description: "" });
+                        currentPolygon = null; 
+                    } else currentPolygon.points.push({x: mouseX, y: mouseY});
+                }
+            } else { isDragging = true; currentZone = { x: mouseX, y: mouseY, w: 0, h: 0, r: 0, shape: shapeType, striped: isStriped, color: mods.color, scale: 1.0, bold: mods.bold, description: "" }; }
+        }
+    });
+
+    canvas.addEventListener('dblclick', e => {
+        if (mode !== 'move' || isSecureLocked || transitionState > 0) return;
+        if (currentHoverTarget) {
+            const phase = phases[currentPhaseIdx];
+            if (phase.texts && phase.texts.includes(currentHoverTarget)) phase.texts.splice(phase.texts.indexOf(currentHoverTarget), 1);
+            else if (phase.units && phase.units.includes(currentHoverTarget)) phase.units.splice(phase.units.indexOf(currentHoverTarget), 1);
+            else if (phase.lines && phase.lines.includes(currentHoverTarget)) phase.lines.splice(phase.lines.indexOf(currentHoverTarget), 1);
+            else if (phase.zones && phase.zones.includes(currentHoverTarget)) phase.zones.splice(phase.zones.indexOf(currentHoverTarget), 1);
+            else if (phase.drawings && phase.drawings.includes(currentHoverTarget)) phase.drawings.splice(phase.drawings.indexOf(currentHoverTarget), 1);
+            else if (phase.cameras && phase.cameras.includes(currentHoverTarget)) phase.cameras.splice(phase.cameras.indexOf(currentHoverTarget), 1);
+            resetInteractions();
+        }
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (isSecureLocked || transitionState > 0) return;
+        const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
+
+        if (!isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping') currentHoverTarget = getHoveredObject(mouseX, mouseY);
+        else currentHoverTarget = null;
+
+        if (!isDragging) return;
+
+        if (mode === 'move' && dragTarget) {
+            const dx = mouseX - lastMouseX; const dy = mouseY - lastMouseY;
+            if (dragTarget.w !== undefined && dragTarget.x1 === undefined) { dragTarget.x += dx; dragTarget.y += dy; } 
+            else if (dragTarget.x1 !== undefined) { dragTarget.x1 += dx; dragTarget.y1 += dy; dragTarget.x2 += dx; dragTarget.y2 += dy; } 
+            else if (dragTarget.points && dragTarget.shape !== 'polygon' && dragTarget.shape !== 'multi') { dragTarget.points.forEach(p => { p.x += dx; p.y += dy; }); } 
+            else if (dragTarget.shape === 'multi') { dragTarget.points.forEach(p => { p.x += dx; p.y += dy; }); }
+            else { dragTarget.x += dx; dragTarget.y += dy; } 
+        } else if (mode === 'resize' && dragTarget) {
+            if (dragTarget.scale !== undefined) dragTarget.scale = Math.max(0.2, startScale + ((mouseX - startMouseX) * 0.01));
+        } else if (mode === 'line' && currentLine) {
+            currentLine.x2 = mouseX; currentLine.y2 = mouseY;
+        } else if (mode === 'draw' && currentDrawing) {
+            if (Math.hypot(mouseX - currentDrawing.points[currentDrawing.points.length - 1].x, mouseY - currentDrawing.points[currentDrawing.points.length - 1].y) > 3) {
+                currentDrawing.points.push({x: mouseX, y: mouseY});
+            }
+        } else if (mode === 'zone' && currentZone) {
+            currentZone.w = mouseX - currentZone.x; currentZone.h = mouseY - currentZone.y;
+            currentZone.r = Math.hypot(currentZone.w, currentZone.h);
+        }
+        lastMouseX = mouseX; lastMouseY = mouseY;
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if (e.button !== 0 || isSecureLocked || transitionState > 0) return; 
+        const phase = phases[currentPhaseIdx]; if(!phase.drawings) phase.drawings = [];
+        
+        if (mode === 'line' && currentLine) {
+            if (Math.hypot(currentLine.x2 - currentLine.x1, currentLine.y2 - currentLine.y1) > 10) phase.lines.push(currentLine); 
+            currentLine = null;
+        } else if (mode === 'draw' && currentDrawing) {
+            if (currentDrawing.points.length > 2) phase.drawings.push(currentDrawing);
+            currentDrawing = null;
+        } else if (mode === 'zone' && currentZone) {
+            if (Math.max(Math.abs(currentZone.w), Math.abs(currentZone.h)) > 10) phase.zones.push(currentZone); 
+            currentZone = null;
+        }
+        isDragging = false; dragTarget = null; currentHoverTarget = getHoveredObject(mouseX, mouseY);
+    });
+
+    // --- CANVAS RENDERERS ---
+    function drawShape(context, shape, cx, cy, size, angle = 0) {
+        context.save(); context.translate(cx, cy); context.rotate(angle); context.beginPath();
+        if (shape === 'square') { context.rect(-size, -size, size*2, size*2); } 
+        else if (shape === 'triangle') { context.moveTo(0, -size*1.2); context.lineTo(size*1.1, size*0.9); context.lineTo(-size*1.1, size*0.9); context.closePath(); } 
+        else if (shape === 'plane') { 
+            context.moveTo(0, -size*1.2); context.lineTo(size*0.2, -size*0.4); context.lineTo(size*1.2, 0); 
+            context.lineTo(size*1.2, size*0.3); context.lineTo(size*0.25, size*0.5); context.lineTo(size*0.15, size*0.9); 
+            context.lineTo(size*0.5, size*1.1); context.lineTo(size*0.5, size*1.3); context.lineTo(0, size*1.1); 
+            context.lineTo(-size*0.5, size*1.3); context.lineTo(-size*0.5, size*1.1); context.lineTo(-size*0.15, size*0.9); 
+            context.lineTo(-size*0.25, size*0.5); context.lineTo(-size*1.2, size*0.3); context.lineTo(-size*1.2, 0); 
+            context.lineTo(-size*0.2, -size*0.4); context.closePath();
+        } 
+        else { context.arc(0, 0, size, 0, Math.PI*2); }
+        context.restore();
+    }
+
+    function drawSegment(context, x1, y1, x2, y2, color, bold, scale, timeParam, invisible = false) {
+        const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist < 5) return; 
+        context.save(); context.translate(x1, y1); context.rotate(Math.atan2(dy, dx));
+        context.beginPath(); context.moveTo(0, 0); context.lineTo(dist, 0);
+        context.strokeStyle = color; context.globalAlpha = invisible ? 0.1 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
+        context.globalAlpha = invisible ? 0.2 : 1.0; const chevSpace = 35 * scale; const offset = (timeParam * 0.025 * scale) % chevSpace;
+        context.lineWidth = (bold ? 5 : 2.5) * scale; context.lineCap = 'square'; context.lineJoin = 'miter';
+        context.beginPath(); context.rect(0, -15*scale, dist, 30*scale); context.clip();
+        for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) {
+            context.beginPath(); context.moveTo(x - 12*scale, -8*scale); context.lineTo(x, 0); context.lineTo(x - 12*scale, 8*scale); context.stroke();
+        }
+        context.restore();
+    }
+
+    function drawBaseMap() {
+        if (backgroundImage) { 
+            const imgRatio = backgroundImage.width / backgroundImage.height;
+            const canvasRatio = canvas.width / canvas.height;
+            let drawW = canvas.width; let drawH = canvas.height;
+            let drawX = 0; let drawY = 0;
+
+            if (imgRatio > canvasRatio) {
+                drawW = canvas.height * imgRatio; drawX = (canvas.width - drawW) / 2;
+            } else {
+                drawH = canvas.width / imgRatio; drawY = (canvas.height - drawH) / 2;
+            }
+            ctx.drawImage(backgroundImage, drawX, drawY, drawW, drawH);
+        } else {
+            ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); 
+            ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+        }
+        if (showGrid) {
+            ctx.save(); const cellSize = 120; const uColor = document.getElementById('gridColorPicker').value;
+            ctx.strokeStyle = hexToRgba(uColor, 0.4); ctx.lineWidth = 2; 
+            ctx.font = "bold 16px 'Courier New', Courier, monospace"; ctx.fillStyle = hexToRgba(uColor, 0.7); ctx.textBaseline = "top";
+            const cols = Math.ceil(canvas.width / cellSize); const rows = Math.ceil(canvas.height / cellSize);
+            for (let i = 0; i < cols; i++) { 
+                for (let j = 0; j < rows; j++) { 
+                    const x = i * cellSize; const y = j * cellSize; 
+                    ctx.strokeRect(x, y, cellSize, cellSize); 
+                    ctx.fillText(`${getColLabel(i)}${j + 1}`, x + 6, y + 6); 
+                } 
+            }
+            ctx.restore();
+        }
+    }
+
+    function drawTacticalElements(context, phaseData, timeParam) {
+        (phaseData.zones || []).forEach(z => {
+            context.save(); context.beginPath();
+            if (z.shape === 'circle') context.arc(z.x, z.y, z.r * z.scale, 0, Math.PI*2);
+            else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * z.scale, z.h * z.scale);
+            else if (z.shape === 'polygon') {
+                context.moveTo(z.x + z.points[0].x * z.scale, z.y + z.points[0].y * z.scale);
+                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * z.scale, z.y + z.points[i].y * z.scale);
+                context.closePath();
+            }
+            context.clip(); context.fillStyle = hexToRgba(z.color, 0.15); context.fill(); 
+            if (z.striped) {
+                context.save(); let cx = z.x, cy = z.y, maxDim = 0;
+                if (z.shape === 'circle') maxDim = z.r * 2 * z.scale;
+                else { cx = z.x + (z.w * z.scale)/2; cy = z.y + (z.h * z.scale)/2; maxDim = Math.hypot(z.w * z.scale, z.h * z.scale) * 1.5; }
+                context.translate(cx, cy); context.rotate(-Math.PI / 4); context.strokeStyle = hexToRgba(z.color, 0.4); context.lineWidth = 12 * z.scale; 
+                const spacing = 24 * z.scale; const speed = 0.025 * z.scale; const offset = (timeParam * speed) % spacing;
+                context.beginPath(); 
+                for (let i = -maxDim; i <= maxDim; i += spacing) { context.moveTo(-maxDim, i + offset); context.lineTo(maxDim, i + offset); }
+                context.stroke(); context.restore();
+            }
+            context.restore(); 
+            context.beginPath();
+            if (z.shape === 'circle') context.arc(z.x, z.y, z.r * z.scale, 0, Math.PI*2);
+            else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * z.scale, z.h * z.scale);
+            else if (z.shape === 'polygon') {
+                context.moveTo(z.x + z.points[0].x * z.scale, z.y + z.points[0].y * z.scale);
+                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * z.scale, z.y + z.points[i].y * z.scale); context.closePath();
+            }
+            context.strokeStyle = z.color; context.lineWidth = (z.bold ? 4 : 2) * z.scale; context.stroke();
+            if (dragTarget === z && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
+        });
+
+        (phaseData.lines || []).forEach(l => {
+            if (isPlaying && l.invisible) return; // Stealth Hide
+            if (dragTarget === l && !isPlaying) {
+                context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * l.scale;
+                context.beginPath(); 
+                if (l.shape === 'multi') { context.moveTo(l.points[0].x, l.points[0].y); for(let i=1; i<l.points.length; i++) context.lineTo(l.points[i].x, l.points[i].y); } 
+                else { context.moveTo(l.x1, l.y1); context.lineTo(l.x2, l.y2); }
+                context.stroke(); context.restore();
+            }
+            if (l.shape === 'multi') {
+                for(let i=0; i<l.points.length-1; i++) drawSegment(context, l.points[i].x, l.points[i].y, l.points[i+1].x, l.points[i+1].y, l.color, l.bold, l.scale, timeParam, l.invisible);
+            } else { drawSegment(context, l.x1, l.y1, l.x2, l.y2, l.color, l.bold, l.scale, timeParam, l.invisible); }
+        });
+
+        (phaseData.drawings || []).forEach(d => {
+            if (d.points.length < 2) return;
+            context.beginPath(); context.moveTo(d.points[0].x, d.points[0].y);
+            for(let i=1; i<d.points.length; i++) context.lineTo(d.points[i].x, d.points[i].y);
+            context.strokeStyle = d.color; context.lineWidth = d.bold ? 4 : 2; context.lineJoin = 'round'; context.lineCap = 'round'; context.stroke();
+            if (dragTarget === d && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
+        });
+
+        (phaseData.cameras || []).forEach(c => {
+            context.save(); context.translate(c.x, c.y);
+            context.fillStyle = hexToRgba(c.color, 0.2); context.strokeStyle = c.color; context.lineWidth = 2;
+            context.beginPath(); context.moveTo(-12, -6); context.lineTo(-6, -12); context.lineTo(6, -12); context.lineTo(12, -6); context.lineTo(12, 10); context.lineTo(-12, 10); context.closePath(); context.fill(); context.stroke();
+            context.fillStyle = '#0a0c0e'; context.beginPath(); context.arc(0, 1, 5, 0, Math.PI*2); context.fill(); context.strokeStyle = c.color; context.stroke();
+            context.fillStyle = c.color; context.beginPath(); context.arc(7, -3, 1.5, 0, Math.PI*2); context.fill();
+            if (dragTarget === c && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
+            context.restore();
+        });
+
+        (phaseData.units || []).forEach(u => {
+            const currentSize = 16 * u.scale; const strokeW = (u.bold ? 4 : 2) * u.scale; const innerStrokeW = 1.5 * u.scale;
+            let cx = u.x; let cy = u.y; let rot = u.angle || 0;
+            if (activeAnimations.has(u)) { let anim = activeAnimations.get(u); cx = anim.pos.x; cy = anim.pos.y; rot = anim.angle; }
+            context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, cx, cy + 4 * u.scale, currentSize, rot); context.fill();
+            context.fillStyle = u.color; drawShape(context, u.shape, cx, cy, currentSize, rot); context.fill();
+            context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
+            context.save(); context.translate(cx, cy); context.rotate(rot); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown);
+            context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
+            if (dragTarget === u && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(cx - currentSize - 6, cy - currentSize - 6, currentSize*2 + 12, currentSize*2 + 12); context.setLineDash([]); }
+        });
+
+        (phaseData.texts || []).forEach(t => {
+            context.save(); const fontSize = Math.floor(16 * t.scale); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
+            const w = context.measureText(t.text).width; const boxPad = 8 * t.scale; const boxH = fontSize * 1.5; context.translate(t.x, t.y);
+            if (t.boxed) { ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * t.scale; ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); }
+            context.fillStyle = t.color; context.textAlign = "center"; context.fillText(t.text, 0, 0);
+            if (dragTarget === t && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
+            context.restore();
+        });
+    }
+
+    function drawTransitionOverlay() {
+        if (transitionAlpha <= 0) return;
+        ctx.save(); ctx.globalAlpha = transitionAlpha;
+        ctx.fillStyle = 'rgba(10, 16, 24, 0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
+        const fontSize = Math.max(30, canvas.width * 0.04); ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const textToDraw = transitionText; const letterSpacing = 8; let currentX = canvas.width / 2; const cy = canvas.height / 2;
+        ctx.shadowColor = 'rgba(109, 164, 207, 0.8)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(10, 16, 24, 0.9)'; ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4;
+        let totalWidth = 0; for (let i = 0; i < textToDraw.length; i++) { totalWidth += ctx.measureText(textToDraw[i]).width + (i < textToDraw.length - 1 ? letterSpacing : 0); }
+        const bW = totalWidth + 80; const bH = fontSize + 40; ctx.fillRect(currentX - bW/2, cy - bH/2, bW, bH); ctx.strokeRect(currentX - bW/2, cy - bH/2, bW, bH);
+        ctx.shadowBlur = 10; ctx.fillStyle = '#6DA4CF'; let startX = currentX - totalWidth / 2;
+        for (let i = 0; i < textToDraw.length; i++) { const char = textToDraw[i]; const charWidth = ctx.measureText(char).width; ctx.fillText(char, startX + charWidth/2, cy); startX += charWidth + letterSpacing; }
+        ctx.restore();
+    }
+
+    // --- MAIN ANIMATION LOOP ---
+    function animate(time) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. PLAYBACK
+        if (isPlaying) {
+            let timeToUse = isPaused ? pauseStartTime : time;
+            let elapsed = timeToUse - playStartTime - totalPausedTime; 
+            let progress = Math.min(elapsed / PLAY_DURATION, 1.0);
+            
+            for (let [u, anim] of activeAnimations.entries()) {
+                let targetDist = progress * anim.total; let currentDist = 0; let found = false;
+                for (let i = 0; i < anim.lengths.length; i++) {
+                    if (currentDist + anim.lengths[i] >= targetDist) {
+                        let segProgress = (targetDist - currentDist) / anim.lengths[i];
+                        let p1 = anim.path[i]; let p2 = anim.path[i+1];
+                        anim.pos.x = p1.x + (p2.x - p1.x) * segProgress; anim.pos.y = p1.y + (p2.y - p1.y) * segProgress;
+                        anim.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) + Math.PI/2; found = true; break;
+                    }
+                    currentDist += anim.lengths[i];
+                }
+                if (!found && anim.path.length > 0) {
+                    let last = anim.path[anim.path.length - 1]; let prev = anim.path[Math.max(0, anim.path.length - 2)];
+                    anim.pos.x = last.x; anim.pos.y = last.y; anim.angle = Math.atan2(last.y - prev.y, last.x - prev.x) + Math.PI/2;
+                }
+            }
+        }
+
+        // 2. TRANSITIONS
+        let transSweepProgress = 0;
+        if (transitionState === 1 || transitionState === 3) {
+            if (!transitionStartTime) transitionStartTime = time; let elapsed = time - transitionStartTime;
+            if (elapsed < 200) { transitionAlpha = elapsed / 200; transSweepProgress = 0; } 
+            else if (elapsed < 800) { transitionAlpha = 1; transSweepProgress = (elapsed - 200) / 600; if (transitionState === 3 && transitionCallback) { transitionCallback(); transitionCallback = null; } } 
+            else if (elapsed < 1000) { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionAlpha = 1 - ((elapsed - 800) / 200); transSweepProgress = 1; } 
+            else { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionState = 0; transitionAlpha = 0; transitionStartTime = null; }
+        }
+
+        // 3. LOCKDOWN 
+        if (isSecureLocked) {
+            ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+            requestAnimationFrame(animate); return; 
+        }
+        
+        // 4. MAP BASE
+        drawBaseMap();
+
+        if (transitionState === 0 || transitionState === 3) {
+            drawTacticalElements(ctx, phases[currentPhaseIdx], time);
+        } else if (transitionState === 1) {
+            let sweepX = canvas.width * transSweepProgress; 
+            ctx.save(); ctx.beginPath(); ctx.rect(0, 0, sweepX, canvas.height); ctx.clip(); drawTacticalElements(ctx, phases[transNewIdx], time); ctx.restore();
+            ctx.save(); ctx.beginPath(); ctx.rect(sweepX, 0, canvas.width - sweepX, canvas.height); ctx.clip(); drawTacticalElements(ctx, phases[transOldIdx], time); ctx.restore();
+            if (transSweepProgress > 0 && transSweepProgress < 1) {
+                ctx.beginPath(); ctx.moveTo(sweepX, 0); ctx.lineTo(sweepX, canvas.height); ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4; ctx.shadowColor = '#6DA4CF'; ctx.shadowBlur = 15; ctx.stroke(); ctx.shadowBlur = 0;
+            }
+        }
+
+        // 5. ACTIVE DRAWING PREVIEWS
+        if (currentPolygon && transitionState === 0) {
+            ctx.save(); ctx.strokeStyle = currentPolygon.color; ctx.lineWidth = currentPolygon.bold ? 4 : 2;
+            ctx.beginPath(); ctx.moveTo(currentPolygon.points[0].x, currentPolygon.points[0].y);
+            for(let i=1; i<currentPolygon.points.length; i++) ctx.lineTo(currentPolygon.points[i].x, currentPolygon.points[i].y);
+            const distToStart = Math.hypot(mouseX - currentPolygon.points[0].x, mouseY - currentPolygon.points[0].y);
+            const canClose = distToStart < 20 && currentPolygon.points.length >= 3;
+            if (canClose) ctx.lineTo(currentPolygon.points[0].x, currentPolygon.points[0].y); else ctx.lineTo(mouseX, mouseY);
+            ctx.stroke(); ctx.beginPath(); ctx.arc(currentPolygon.points[0].x, currentPolygon.points[0].y, 6, 0, Math.PI*2);
+            ctx.fillStyle = canClose ? '#00ff00' : currentPolygon.color; if (canClose) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10; }
+            ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); }
+            ctx.restore();
+        }
+        
+        if (currentLine && transitionState === 0) { 
+            ctx.save();
+            ctx.globalAlpha = currentLine.invisible ? 0.3 : 1.0;
+            ctx.beginPath(); ctx.moveTo(currentLine.x1, currentLine.y1); ctx.lineTo(currentLine.x2, currentLine.y2); 
+            ctx.strokeStyle = currentLine.color; ctx.lineWidth = 4 * currentLine.scale; ctx.stroke(); 
+            ctx.restore();
+        }
+        
+        if (currentDrawing && transitionState === 0) { 
+            ctx.beginPath(); ctx.moveTo(currentDrawing.points[0].x, currentDrawing.points[0].y); 
+            for(let i=1; i<currentDrawing.points.length; i++) ctx.lineTo(currentDrawing.points[i].x, currentDrawing.points[i].y); 
+            ctx.strokeStyle = currentDrawing.color; ctx.lineWidth = currentDrawing.bold ? 4 : 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke(); 
+        }
+
+        if (currentMultiLine && transitionState === 0) {
+            const trAlpha = currentMultiLine.invisible ? 0.1 : 0.25;
+            const chAlpha = currentMultiLine.invisible ? 0.2 : 1.0;
+
+            for (let i = 0; i < currentMultiLine.points.length - 1; i++) {
+                const p1 = currentMultiLine.points[i]; const p2 = currentMultiLine.points[i+1];
+                const dx = p2.x - p1.x; const dy = p2.y - p1.y; const dist = Math.hypot(dx, dy);
+                if (dist > 5) {
+                    ctx.save(); ctx.translate(p1.x, p1.y); ctx.rotate(Math.atan2(dy, dx)); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(dist, 0); ctx.strokeStyle = currentMultiLine.color; ctx.globalAlpha = trAlpha; ctx.lineWidth = (currentMultiLine.bold ? 8 : 4) * currentMultiLine.scale; ctx.stroke(); ctx.globalAlpha = chAlpha; const chevSpace = 35 * currentMultiLine.scale; const offset = (time * 0.025 * currentMultiLine.scale) % chevSpace; ctx.lineWidth = (currentMultiLine.bold ? 5 : 2.5) * currentMultiLine.scale; ctx.lineCap = 'square'; ctx.lineJoin = 'miter'; ctx.beginPath(); ctx.rect(0, -15*currentMultiLine.scale, dist, 30*currentMultiLine.scale); ctx.clip(); for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) { ctx.beginPath(); ctx.moveTo(x - 12*currentMultiLine.scale, -8*currentMultiLine.scale); ctx.lineTo(x, 0); ctx.lineTo(x - 12*currentMultiLine.scale, 8*currentMultiLine.scale); ctx.stroke(); } ctx.restore();
+                }
+            }
+            const lastPt = currentMultiLine.points[currentMultiLine.points.length - 1];
+            const dx = mouseX - lastPt.x; const dy = mouseY - lastPt.y; const dist = Math.hypot(dx, dy);
+            if (dist > 5) {
+                ctx.save(); ctx.translate(lastPt.x, lastPt.y); ctx.rotate(Math.atan2(dy, dx)); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(dist, 0); ctx.strokeStyle = currentMultiLine.color; ctx.globalAlpha = trAlpha; ctx.lineWidth = (currentMultiLine.bold ? 8 : 4) * currentMultiLine.scale; ctx.stroke(); ctx.globalAlpha = chAlpha; const chevSpace = 35 * currentMultiLine.scale; const offset = (time * 0.025 * currentMultiLine.scale) % chevSpace; ctx.lineWidth = (currentMultiLine.bold ? 5 : 2.5) * currentMultiLine.scale; ctx.lineCap = 'square'; ctx.lineJoin = 'miter'; ctx.beginPath(); ctx.rect(0, -15*currentMultiLine.scale, dist, 30*currentMultiLine.scale); ctx.clip(); for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) { ctx.beginPath(); ctx.moveTo(x - 12*currentMultiLine.scale, -8*currentMultiLine.scale); ctx.lineTo(x, 0); ctx.lineTo(x - 12*currentMultiLine.scale, 8*currentMultiLine.scale); ctx.stroke(); } ctx.restore();
+            }
+            const canClose = dist < 20 && currentMultiLine.points.length >= 2;
+            ctx.beginPath(); ctx.arc(lastPt.x, lastPt.y, 6, 0, Math.PI*2); ctx.fillStyle = canClose ? '#00ff00' : currentMultiLine.color;
+            if (canClose) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10; } ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); } ctx.shadowBlur = 0;
+        }
+
+        if (transitionState === 0) {
+            for (let i = activePings.length - 1; i >= 0; i--) {
+                let p = activePings[i]; p.radius += 2.5; p.alpha -= 0.015;
+                if (p.alpha <= 0) { activePings.splice(i, 1); continue; }
+                ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.strokeStyle = hexToRgba(p.color, p.alpha); ctx.lineWidth = 4; ctx.stroke();
+                ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fillStyle = hexToRgba(p.color, p.alpha); ctx.fill(); ctx.restore();
+            }
+        }
+
+        // 6. HOVER HUD
+        if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0) {
+            ctx.save(); 
+            if (currentHoverTarget.imgData) {
+                if (!currentHoverTarget.imgObj) { currentHoverTarget.imgObj = new Image(); currentHoverTarget.imgObj.src = currentHoverTarget.imgData; }
+                if (currentHoverTarget.imgObj.complete) {
+                    const drawW = 600; const drawH = (currentHoverTarget.imgObj.height / currentHoverTarget.imgObj.width) * drawW;
+                    let tX = mouseX + 20; let tY = mouseY + 20;
+                    if (tX + drawW > canvas.width) tX = mouseX - drawW - 20; if (tY + drawH > canvas.height) tY = mouseY - drawH - 20;
+                    ctx.shadowColor = currentHoverTarget.color; ctx.shadowBlur = 20; ctx.fillStyle = "rgba(10, 16, 24, 0.95)"; ctx.strokeStyle = currentHoverTarget.color; ctx.lineWidth = 3;
+                    ctx.fillRect(tX, tY, drawW, drawH); ctx.strokeRect(tX, tY, drawW, drawH); ctx.shadowBlur = 0;
+                    ctx.drawImage(currentHoverTarget.imgObj, tX, tY, drawW, drawH);
+                    if (currentHoverTarget.description) {
+                        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(tX, tY + drawH - 30, drawW, 30); ctx.font = "bold 13px 'Courier New', Courier, monospace";
+                        ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(currentHoverTarget.description, tX + drawW/2, tY + drawH - 15);
+                    }
+                }
+            } 
+            else if (currentHoverTarget.description && currentHoverTarget.description.trim() !== "") {
+                ctx.font = "bold 13px 'Courier New', Courier, monospace";
+                const pad = 12; const txtW = ctx.measureText(currentHoverTarget.description).width; const bW = txtW + pad * 2; const bH = 34;
+                let tX = mouseX + 15; let tY = mouseY + 15;
+                if (tX + bW > canvas.width) tX = mouseX - bW - 10; if (tY + bH > canvas.height) tY = mouseY - bH - 10;
+                ctx.shadowColor = currentHoverTarget.color; ctx.shadowBlur = 15; ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.strokeStyle = currentHoverTarget.color; ctx.lineWidth = 2;
+                ctx.fillRect(tX, tY, bW, bH); ctx.strokeRect(tX, tY, bW, bH); ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillText(currentHoverTarget.description, tX + pad, tY + bH/2);
+            }
+            ctx.restore();
+        }
+
+        drawTransitionOverlay();
+        requestAnimationFrame(animate);
+    }
+    
+    syncPhasePointers();
+    requestAnimationFrame(animate);
+</script>
+
+</body>
+</html>
