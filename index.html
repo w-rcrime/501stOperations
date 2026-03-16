@@ -234,6 +234,7 @@
     // Advanced Playback Controls
     let isPlaying = false; let isPaused = false; 
     let playStartTime = 0; let pauseStartTime = 0; let totalPausedTime = 0;
+    let playFinishedTime = null; // Tracks when animation naturally reaches the end
     const PLAY_DURATION = 4000;
     let activeAnimations = new Map(); 
 
@@ -405,6 +406,7 @@
             isPaused = false;
             totalPausedTime = 0;
             playStartTime = performance.now();
+            playFinishedTime = null;
             
             btnPlay.style.color = '#ffcc00'; 
             btnPlay.innerText = '|| PAUSE';
@@ -428,6 +430,7 @@
     function stopPlayback() {
         isPlaying = false; 
         isPaused = false;
+        playFinishedTime = null;
         activeAnimations.clear();
         
         const btnPlay = document.getElementById('btnPlay');
@@ -981,6 +984,20 @@
                     anim.pos.x = last.x; anim.pos.y = last.y; anim.angle = Math.atan2(last.y - prev.y, last.x - prev.x) + Math.PI/2;
                 }
             }
+
+            // AUTO-ADVANCE FOR RECORDING
+            if (progress >= 1.0 && !isPaused) {
+                if (!playFinishedTime) playFinishedTime = time;
+                else if (time - playFinishedTime > 1000) { // 1 second delay
+                    if (isRecording && currentPhaseIdx < phases.length - 1) {
+                        triggerSmoothTransition(currentPhaseIdx + 1);
+                    }
+                }
+            } else {
+                playFinishedTime = null;
+            }
+        } else {
+            playFinishedTime = null;
         }
 
         // 2. RECORDING INTRO
