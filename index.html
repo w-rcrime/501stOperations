@@ -30,7 +30,7 @@
         
         #canvas-wrapper { 
             flex-grow: 1; 
-            position: relative; /* Keeps the HUD panels constrained to this area */
+            position: relative; 
             background: #050608; 
             background-image: radial-gradient(#151a25 1.5px, transparent 1.5px); 
             background-size: 25px 25px; 
@@ -62,7 +62,6 @@
             box-sizing: border-box;
         }
         
-        /* Adjusted HUD panels for the side columns */
         .hud-panel { position: absolute; background: rgba(10, 12, 16, 0.9); border: 1px solid #6DA4CF; pointer-events: none; box-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-transform: uppercase; letter-spacing: 1px; z-index: 5; }
         .controls-hint { bottom: 20px; left: 20px; padding: 10px 15px; font-size: 0.75em; border-left: 4px solid #6DA4CF; line-height: 1.5; max-width: 250px; }
         .legend-box { top: 20px; right: 20px; padding: 12px; font-size: 0.75em; border-top: 4px solid #6DA4CF; min-width: 160px; }
@@ -766,9 +765,17 @@
             let drawX = 0; let drawY = 0;
 
             if (imgRatio > canvasRatio) {
-                drawW = canvas.height * imgRatio; drawX = (canvas.width - drawW) / 2;
+                // Image is wider than 16:9 - fit to width, letterbox top/bottom
+                drawW = canvas.width;
+                drawH = canvas.width / imgRatio;
+                drawX = 0;
+                drawY = (canvas.height - drawH) / 2;
             } else {
-                drawH = canvas.width / imgRatio; drawY = (canvas.height - drawH) / 2;
+                // Image is taller than 16:9 - fit to height, pillarbox left/right
+                drawH = canvas.height;
+                drawW = canvas.height * imgRatio;
+                drawX = (canvas.width - drawW) / 2;
+                drawY = 0;
             }
             ctx.drawImage(backgroundImage, drawX, drawY, drawW, drawH);
         } else {
