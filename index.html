@@ -226,6 +226,7 @@
 
     // Media & Playback State
     let mediaRecorder = null; let recordedChunks = []; let isRecording = false;
+    let isRecordingIntro = false; let recIntroStartTime = null; 
     let isSecureLocked = false; 
     let transitionState = 0; let transitionStartTime = null; let transitionAlpha = 0;
     let transOldIdx = 0; let transNewIdx = 0; let transitionText = ""; let transitionCallback = null;
@@ -305,27 +306,27 @@
     }
 
     // --- PHASE & STATE CONTROL ---
-    function renameOp() { if (transitionState > 0 || isPlaying) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } }
+    function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } }
     function syncPhasePointers() { document.getElementById('phaseDisplay').innerText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-    function renamePhase() { if (transitionState > 0 || isPlaying) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } }
+    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } }
     function resetInteractions() { dragTarget = null; currentPolygon = null; currentLine = null; currentMultiLine = null; currentZone = null; currentDrawing = null; isDragging = false; currentHoverTarget = null; }
 
     function triggerSmoothTransition(newIdx) { 
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         if (isPlaying) stopPlayback(); 
         transOldIdx = currentPhaseIdx; transNewIdx = newIdx; transitionText = phases[newIdx].name || `PHASE ${newIdx + 1}`; 
         transitionState = 1; transitionStartTime = null; resetInteractions(); 
     }
     
     function runTransition(phaseText, callback) { 
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         if (isPlaying) stopPlayback();
         transitionText = phaseText; transitionCallback = callback; transitionState = 3; 
         transitionStartTime = null; resetInteractions(); 
     }
     
     function addPhase() {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         const current = phases[currentPhaseIdx];
         
         let newUnits = JSON.parse(JSON.stringify(current.units || []));
@@ -354,15 +355,15 @@
     }
 
     function nextPhase() { 
-        if (transitionState === 0 && !isPlaying && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); 
+        if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); 
     }
     
     function prevPhase() { 
-        if (transitionState === 0 && !isPlaying && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); 
+        if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); 
     }
 
     window.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'l' && transitionState === 0) {
+        if (e.key.toLowerCase() === 'l' && transitionState === 0 && !isRecordingIntro) {
             isSecureLocked = !isSecureLocked; 
             document.getElementById('legendBox').style.display = isSecureLocked ? 'none' : 'block'; 
             document.getElementById('credits-box').style.display = isSecureLocked ? 'none' : 'block'; 
@@ -372,7 +373,7 @@
 
     // --- ANIMATION CONTROLS ---
     function togglePlayback() {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const btnPlay = document.getElementById('btnPlay');
         const btnStop = document.getElementById('btnStop');
         
@@ -449,7 +450,7 @@
     });
 
     document.getElementById('bgInput').addEventListener('change', (e) => {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         const file = e.target.files[0]; if (!file) return; 
         const reader = new FileReader();
         reader.onload = (event) => { 
@@ -461,7 +462,7 @@
     });
 
     document.getElementById('dataInput').addEventListener('change', (e) => {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         const file = e.target.files[0]; if (!file) return; 
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -487,7 +488,7 @@
     });
 
     function exportImage() {
-        if (isSecureLocked || transitionState > 0) return; resetInteractions();
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return; resetInteractions();
         setTimeout(() => { 
             try { 
                 let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
@@ -498,7 +499,7 @@
     }
     
     function exportData() {
-        if (transitionState > 0) return;
+        if (transitionState > 0 || isRecordingIntro) return;
         const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value };
         const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); 
         const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); 
@@ -507,7 +508,7 @@
     }
     
     function clearCanvas() { 
-        if(transitionState > 0) return; 
+        if(transitionState > 0 || isRecordingIntro) return; 
         if(confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
             phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
             currentPhaseIdx = 0; syncPhasePointers(); backgroundImage = null; resetInteractions(); 
@@ -521,6 +522,8 @@
         
         if (!isRecording) {
             resetInteractions();
+            isRecordingIntro = true; 
+            recIntroStartTime = null;
             const stream = canvas.captureStream(30); 
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
             
@@ -536,21 +539,21 @@
             mediaRecorder.start(); isRecording = true; 
             btnRecord.classList.add('recording-active'); btnRecord.innerText = '[ STOP REC ]';
         } else { 
-            mediaRecorder.stop(); isRecording = false; 
+            mediaRecorder.stop(); isRecording = false; isRecordingIntro = false;
             btnRecord.classList.remove('recording-active'); btnRecord.innerText = '[ REC ANIM ]'; 
         }
     }
 
     // --- UI TOOLS ---
     function toggleGrid() {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         showGrid = !showGrid; const btn = document.getElementById('btnGrid'); 
         btn.innerText = showGrid ? 'GRID: ON' : 'GRID: OFF'; 
         if (showGrid) btn.classList.add('active-mode'); else btn.classList.remove('active-mode');
     }
 
     function setMode(newMode) {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         mode = newMode; currentPolygon = null; currentMultiLine = null;
         
         const hintBox = document.getElementById('hintBox'); 
@@ -586,7 +589,7 @@
     }
 
     function addUnit(type) {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         let color = '#ffffff'; 
         if (type === '501st') color = '#0066ff'; 
         if (type === 'enemy') color = '#ff1a1a'; 
@@ -599,14 +602,14 @@
     }
     
     function addText() {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const txt = prompt("INPUT TACTICAL DESIGNATION:"); const mods = getModifiers();
         if (txt && txt.trim() !== "") { phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, scale: 1.0, bold: mods.bold, description: "" }); setMode('move'); }
     }
 
     // --- MOUSE EVENTS ---
     canvas.addEventListener('contextmenu', e => {
-        e.preventDefault(); if (isSecureLocked || transitionState > 0) return;
+        e.preventDefault(); if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         if (currentPolygon) { currentPolygon = null; return; }
         if (currentMultiLine) { currentMultiLine = null; return; }
         if (currentDrawing) { currentDrawing = null; isDragging = false; return; }
@@ -618,7 +621,7 @@
     });
 
     canvas.addEventListener('mousedown', e => {
-        if (e.button !== 0 || isSecureLocked || transitionState > 0) return; 
+        if (e.button !== 0 || isSecureLocked || transitionState > 0 || isRecordingIntro) return; 
         const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
         
         if (mode === 'move' || mode === 'resize') {
@@ -663,7 +666,7 @@
     });
 
     canvas.addEventListener('dblclick', e => {
-        if (mode !== 'move' || isSecureLocked || transitionState > 0) return;
+        if (mode !== 'move' || isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         if (currentHoverTarget) {
             const phase = phases[currentPhaseIdx];
             if (phase.texts && phase.texts.includes(currentHoverTarget)) phase.texts.splice(phase.texts.indexOf(currentHoverTarget), 1);
@@ -677,7 +680,7 @@
     });
 
     window.addEventListener('mousemove', e => {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
 
         if (!isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping') currentHoverTarget = getHoveredObject(mouseX, mouseY);
@@ -708,7 +711,7 @@
     });
 
     window.addEventListener('mouseup', (e) => {
-        if (e.button !== 0 || isSecureLocked || transitionState > 0) return; 
+        if (e.button !== 0 || isSecureLocked || transitionState > 0 || isRecordingIntro) return; 
         const phase = phases[currentPhaseIdx]; if(!phase.drawings) phase.drawings = [];
         
         if (mode === 'line' && currentLine) {
@@ -853,13 +856,13 @@
                 for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale); context.closePath();
             }
             context.strokeStyle = z.color; context.lineWidth = (z.bold ? 4 : 2) * zScale; context.stroke();
-            if (dragTarget === z && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
+            if (dragTarget === z && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
         (phaseData.lines || []).forEach(l => {
             const lScale = l.scale || 1.0;
             if (isPlaying && l.invisible) return; // Stealth Hide
-            if (dragTarget === l && !isPlaying) {
+            if (dragTarget === l && !isPlaying && !isRecordingIntro) {
                 context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * lScale;
                 context.beginPath(); 
                 if (l.shape === 'multi') { context.moveTo(l.points[0].x, l.points[0].y); for(let i=1; i<l.points.length; i++) context.lineTo(l.points[i].x, l.points[i].y); } 
@@ -876,7 +879,7 @@
             context.beginPath(); context.moveTo(d.points[0].x, d.points[0].y);
             for(let i=1; i<d.points.length; i++) context.lineTo(d.points[i].x, d.points[i].y);
             context.strokeStyle = d.color; context.lineWidth = d.bold ? 4 : 2; context.lineJoin = 'round'; context.lineCap = 'round'; context.stroke();
-            if (dragTarget === d && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
+            if (dragTarget === d && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
         (phaseData.cameras || []).forEach(c => {
@@ -885,7 +888,7 @@
             context.beginPath(); context.moveTo(-12, -6); context.lineTo(-6, -12); context.lineTo(6, -12); context.lineTo(12, -6); context.lineTo(12, 10); context.lineTo(-12, 10); context.closePath(); context.fill(); context.stroke();
             context.fillStyle = '#0a0c0e'; context.beginPath(); context.arc(0, 1, 5, 0, Math.PI*2); context.fill(); context.strokeStyle = c.color; context.stroke();
             context.fillStyle = c.color; context.beginPath(); context.arc(7, -3, 1.5, 0, Math.PI*2); context.fill();
-            if (dragTarget === c && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
+            if (dragTarget === c && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
             context.restore();
         });
 
@@ -899,7 +902,7 @@
             context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
             context.save(); context.translate(cx, cy); context.rotate(rot); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown);
             context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
-            if (dragTarget === u && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(cx - currentSize - 6, cy - currentSize - 6, currentSize*2 + 12, currentSize*2 + 12); context.setLineDash([]); }
+            if (dragTarget === u && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(cx - currentSize - 6, cy - currentSize - 6, currentSize*2 + 12, currentSize*2 + 12); context.setLineDash([]); }
         });
 
         (phaseData.texts || []).forEach(t => {
@@ -908,7 +911,7 @@
             const w = context.measureText(t.text).width; const boxPad = 8 * tScale; const boxH = fontSize * 1.5; context.translate(t.x, t.y);
             if (t.boxed) { ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * tScale; ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); }
             context.fillStyle = t.color; context.textAlign = "center"; context.fillText(t.text, 0, 0);
-            if (dragTarget === t && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
+            if (dragTarget === t && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
             context.restore();
         });
     }
@@ -925,6 +928,30 @@
         const bW = totalWidth + 80; const bH = fontSize + 40; ctx.fillRect(currentX - bW/2, cy - bH/2, bW, bH); ctx.strokeRect(currentX - bW/2, cy - bH/2, bW, bH);
         ctx.shadowBlur = 10; ctx.fillStyle = '#6DA4CF'; let startX = currentX - totalWidth / 2;
         for (let i = 0; i < textToDraw.length; i++) { const char = textToDraw[i]; const charWidth = ctx.measureText(char).width; ctx.fillText(char, startX + charWidth/2, cy); startX += charWidth + letterSpacing; }
+        ctx.restore();
+    }
+
+    function drawRecordingIntro(elapsed) {
+        let overlayAlpha = 1.0; let textAlpha = 0.0; let currentText = "";
+        
+        if (elapsed < 300) { textAlpha = elapsed/300; currentText = operationName; }
+        else if (elapsed < 1200) { textAlpha = 1; currentText = operationName; }
+        else if (elapsed < 1500) { textAlpha = 1 - (elapsed-1200)/300; currentText = operationName; }
+        else if (elapsed < 1800) { textAlpha = (elapsed-1500)/300; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+        else if (elapsed < 2700) { textAlpha = 1; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+        else if (elapsed <= 3000) { let fadeOut = 1 - (elapsed-2700)/300; textAlpha = fadeOut; overlayAlpha = fadeOut; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+
+        ctx.save(); ctx.globalAlpha = overlayAlpha; ctx.fillStyle = '#050608'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
+        if (textAlpha > 0) {
+            ctx.globalAlpha = textAlpha; const fontSize = Math.max(30, canvas.width * 0.04); ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            const letterSpacing = 8; let currentX = canvas.width / 2; const cy = canvas.height / 2;
+            ctx.shadowColor = 'rgba(109, 164, 207, 0.8)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(10, 16, 24, 0.9)'; ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4;
+            let totalWidth = 0; for (let i = 0; i < currentText.length; i++) { totalWidth += ctx.measureText(currentText[i]).width + (i < currentText.length - 1 ? letterSpacing : 0); }
+            const bW = totalWidth + 80; const bH = fontSize + 40; ctx.fillRect(currentX - bW/2, cy - bH/2, bW, bH); ctx.strokeRect(currentX - bW/2, cy - bH/2, bW, bH);
+            ctx.shadowBlur = 10; ctx.fillStyle = '#6DA4CF'; let startX = currentX - totalWidth / 2;
+            for (let i = 0; i < currentText.length; i++) { const char = currentText[i]; const charWidth = ctx.measureText(char).width; ctx.fillText(char, startX + charWidth/2, cy); startX += charWidth + letterSpacing; }
+        }
         ctx.restore();
     }
 
@@ -956,7 +983,14 @@
             }
         }
 
-        // 2. TRANSITIONS
+        // 2. RECORDING INTRO
+        if (isRecordingIntro) {
+            if (!recIntroStartTime) recIntroStartTime = time; let elapsed = time - recIntroStartTime;
+            if (elapsed > 3000) { isRecordingIntro = false; } 
+            else { drawBaseMap(); drawTacticalElements(ctx, phases[currentPhaseIdx], time); drawRecordingIntro(elapsed); requestAnimationFrame(animate); return; }
+        }
+
+        // 3. TRANSITIONS
         let transSweepProgress = 0;
         if (transitionState === 1 || transitionState === 3) {
             if (!transitionStartTime) transitionStartTime = time; let elapsed = time - transitionStartTime;
@@ -966,7 +1000,7 @@
             else { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionState = 0; transitionAlpha = 0; transitionStartTime = null; }
         }
 
-        // 3. LOCKDOWN 
+        // 4. LOCKDOWN 
         if (isSecureLocked) {
             ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
@@ -974,7 +1008,7 @@
             requestAnimationFrame(animate); return; 
         }
         
-        // 4. MAP BASE
+        // 5. MAP BASE
         drawBaseMap();
 
         if (transitionState === 0 || transitionState === 3) {
@@ -988,7 +1022,7 @@
             }
         }
 
-        // 5. ACTIVE DRAWING PREVIEWS
+        // 6. ACTIVE DRAWING PREVIEWS
         if (currentPolygon && transitionState === 0) {
             ctx.save(); ctx.strokeStyle = currentPolygon.color; ctx.lineWidth = currentPolygon.bold ? 4 : 2;
             ctx.beginPath(); ctx.moveTo(currentPolygon.points[0].x, currentPolygon.points[0].y);
@@ -1056,8 +1090,8 @@
             }
         }
 
-        // 6. HOVER HUD
-        if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0) {
+        // 7. HOVER HUD
+        if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0 && !isRecordingIntro) {
             ctx.save(); 
             if (currentHoverTarget.imgData) {
                 if (!currentHoverTarget.imgObj) { currentHoverTarget.imgObj = new Image(); currentHoverTarget.imgObj.src = currentHoverTarget.imgData; }
