@@ -10,12 +10,12 @@
         .toolbar-row { display: flex; width: 100%; gap: 10px; align-items: center; flex-wrap: wrap; }
         .title { color: #6DA4CF; margin-right: 15px; font-size: 1.2em; text-transform: uppercase; letter-spacing: 2px; text-shadow: 1px 1px 0 #000; }
         
-        button, select, .file-label { 
+        button, select, .file-label, input[type="text"] { 
             background: #1c2630; color: #d1e8ff; border: 1px solid #6DA4CF; padding: 6px 12px; 
-            cursor: pointer; font-weight: bold; font-family: inherit; font-size: 0.8em; 
+            font-weight: bold; font-family: inherit; font-size: 0.8em; 
             text-transform: uppercase; letter-spacing: 1px; transition: all 0.1s; 
-            display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; 
         }
+        button { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
         button:hover, select:hover, .file-label:hover { background: #6DA4CF; color: #fff; }
         button:active { transform: translateY(2px); }
         button.active-mode { background: #345c7d; color: #fff; border-color: #6DA4CF; box-shadow: inset 0 0 8px rgba(0,0,0,0.5); }
@@ -30,37 +30,19 @@
         input[type="range"] { cursor: pointer; accent-color: #6DA4CF; vertical-align: middle; }
         
         #canvas-wrapper { 
-            flex-grow: 1; 
-            position: relative; 
-            background: #050608; 
+            flex-grow: 1; position: relative; background: #050608; 
             background-image: radial-gradient(#151a25 1.5px, transparent 1.5px); 
-            background-size: 25px 25px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            overflow: hidden; 
-            padding: 20px;
-            box-sizing: border-box;
+            background-size: 25px 25px; display: flex; justify-content: center; 
+            align-items: center; overflow: hidden; padding: 20px; box-sizing: border-box;
         }
 
-        #aspect-ratio-forcer {
-            position: relative;
-            aspect-ratio: 16 / 9;
-            max-width: 100%;
-            max-height: 100%;
-            display: flex;
-        }
+        #aspect-ratio-forcer { position: relative; aspect-ratio: 16 / 9; max-width: 100%; max-height: 100%; display: flex; }
         
         canvas { 
-            width: 100%;
-            height: 100%;
-            display: block; 
-            background: #080a0d; 
-            border: 4px solid #6DA4CF; 
-            border-radius: 6px; 
+            width: 100%; height: 100%; display: block; background: #080a0d; 
+            border: 4px solid #6DA4CF; border-radius: 6px; 
             box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 0 10px rgba(109, 164, 207, 0.4); 
-            cursor: crosshair; 
-            box-sizing: border-box;
+            cursor: crosshair; box-sizing: border-box;
         }
         
         .hud-panel { position: absolute; background: rgba(10, 12, 16, 0.9); border: 1px solid #6DA4CF; pointer-events: none; box-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-transform: uppercase; letter-spacing: 1px; z-index: 5; }
@@ -70,6 +52,8 @@
         .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
         .legend-dot { font-size: 1.4em; line-height: 0.5; text-shadow: 0 0 5px currentColor; }
         #credits-box { bottom: 20px; right: 20px; padding: 8px 12px; font-size: 0.7em; border-right: 4px solid #6DA4CF; border-left: none; border-top: none; border-bottom: none; text-align: right; line-height: 1.5; color: #6DA4CF; }
+        
+        #active-network-hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,230,77,0.2); color: #00e64d; padding: 5px 15px; border: 1px solid #00e64d; font-size: 0.8em; font-weight: bold; letter-spacing: 2px; border-radius: 4px; display: none; z-index: 100; pointer-events: none;}
         
         @keyframes pulseRec { 0% { background-color: #1c2630; color: #ff4444; border-color: #ff4444; } 50% { background-color: #ff4444; color: #fff; border-color: #fff; } 100% { background-color: #1c2630; color: #ff4444; border-color: #ff4444; } }
         .recording-active { animation: pulseRec 1.5s infinite; }
@@ -108,7 +92,6 @@
             <button id="btnGrid" onclick="toggleGrid()">GRID: OFF</button>
             <label class="file-label">MAP <input type="file" id="bgInput" accept="image/*"></label>
             <div class="separator" style="margin:0;"></div>
-            <button onclick="exportImage()" style="color: #00e64d;" title="Save Image">[ IMG ]</button>
             <button id="btnPlay" onclick="togglePlayback()" style="color: #00e64d;" title="Animate Units along Paths">▶ PLAY</button>
             <button id="btnStop" onclick="stopPlayback()" style="color: #ff4444; display: none;" title="Stop & Reset Animation">⏹ STOP</button>
             <button id="btnRecord" onclick="toggleRecording()" style="color: #ff4444;" title="Record Cinematic Video">[ REC ANIM ]</button>
@@ -131,7 +114,6 @@
             </select>
             <input type="color" id="customColorPicker" value="#0066ff" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
             <div class="separator" style="margin: 0 2px;"></div>
-            
             <select id="unitShapeSelect" title="Unit Shape">
                 <option value="circle">● SHINY</option>
                 <option value="triangle">▲ INFANTRY</option>
@@ -141,19 +123,15 @@
                 <option value="tank">▤ TANK</option>
                 <option value="atte">◖ AT-TE</option>
             </select>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;">
-                <input type="checkbox" id="boldCheck"> BOLD
-            </label>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="boldCheck"> BOLD</label>
         </div>
         <div class="separator"></div>
         <div class="tool-group">
             <span style="font-size:0.8em; color:#6DA4CF;">GRID OPTIONS:</span>
             <input type="color" id="gridColorPicker" value="#6DA4CF" title="Grid Color">
             <div class="separator" style="margin: 0 2px;"></div>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
-                <input type="checkbox" id="mgrsCheck"> MGRS-Style
-            </label>
-            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF; font-family:inherit;">
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="mgrsCheck"> MGRS</label>
+            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF;">
             <div class="separator" style="margin: 0 2px;"></div>
             <span style="font-size:0.8em; color:#6DA4CF;">Snap Size:</span>
             <input type="range" id="cellSizeSlider" min="0" max="7" step="1" value="4" style="width: 90px;" title="Scale Grid Density">
@@ -169,30 +147,16 @@
         <div class="separator"></div>
         <div class="tool-group">
             <button onclick="addText()">+ TEXT</button>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
-                <input type="checkbox" id="boxTextCheck" checked> BOXED
-            </label>
-            <button id="btnCamera" onclick="setMode('camera')" style="margin-left:5px; color:#ffcc00;">+ CAMERA VIEW</button>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="boxTextCheck" checked> BOXED</label>
         </div>
 
         <div class="tool-group" id="lineTools" style="display:none; margin-left:10px;">
-            <select id="lineShape">
-                <option value="single">/ SINGLE</option>
-                <option value="multi">/\ STENCIL</option>
-            </select>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer; color:#ff1a1a;">
-                <input type="checkbox" id="pathInvisibleCheck"> INVISIBLE
-            </label>
+            <select id="lineShape"><option value="single">/ SINGLE</option><option value="multi">/\ STENCIL</option></select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer; color:#ff1a1a;"><input type="checkbox" id="pathInvisibleCheck"> INVISIBLE</label>
         </div>
         <div class="tool-group" id="zoneTools" style="display:none; margin-left:10px;">
-            <select id="zoneShape">
-                <option value="circle">O CIRCLE</option>
-                <option value="rect">[] RECT</option>
-                <option value="polygon">⬠ STENCIL</option>
-            </select>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
-                <input type="checkbox" id="zoneStripedCheck" checked> STRIPED
-            </label>
+            <select id="zoneShape"><option value="circle">O CIRCLE</option><option value="rect">[] RECT</option><option value="polygon">⬠ STENCIL</option></select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="zoneStripedCheck" checked> STRIPED</label>
         </div>
     </div>
 </div>
@@ -231,12 +195,11 @@
     let phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
     let currentPhaseIdx = 0;
     let mode = 'move'; let backgroundImage = null; let showGrid = false;
-    let gridLabelStyle = 'std'; 
-    let gridPrefix = ""; 
+    let gridLabelStyle = 'std'; let gridPrefix = ""; 
     
     // Grid divisions perfectly tailored to split the map cleanly
     const gridDivisions = [8, 12, 16, 20, 24, 32, 40, 48];
-    let currentCellSizeIdx = 4; // Defaults to 24 divisions
+    let currentCellSizeIdx = 4; 
 
     // Interaction & Tool State
     let isDragging = false; let dragTarget = null; 
@@ -245,34 +208,31 @@
     let mouseX = -100; let mouseY = -100; let lastMouseX = 0; let lastMouseY = 0;
     let startScale = 1.0; let startMouseX = 0; let pendingCamX = 0; let pendingCamY = 0;
 
-    // Media & Playback State
     let mediaRecorder = null; let recordedChunks = []; let isRecording = false;
     let isRecordingIntro = false; let recIntroStartTime = null; 
     let isSecureLocked = false; 
     let transitionState = 0; let transitionStartTime = null; let transitionAlpha = 0;
     let transOldIdx = 0; let transNewIdx = 0; let transitionText = ""; let transitionCallback = null;
-    let saveMessageAlpha = 0; // Controls the Auto-Save Toast visibility
+    let saveMessageAlpha = 0; 
     
     // Advanced Playback Controls
     let isPlaying = false; let isPaused = false; 
     let playStartTime = 0; let pauseStartTime = 0; let totalPausedTime = 0;
-    let playFinishedTime = null; 
-    const PLAY_DURATION = 4000;
+    let playFinishedTime = null; const PLAY_DURATION = 4000;
     let activeAnimations = new Map(); 
+    let historyStack = [];
 
     // --- HISTORY / UNDO LOGIC ---
-    let historyStack = [];
-    
     function saveHistory() {
         historyStack.push(JSON.stringify(phases[currentPhaseIdx]));
-        if (historyStack.length > 30) historyStack.shift(); // Keep last 30 actions
+        if (historyStack.length > 30) historyStack.shift(); 
     }
 
     function undo() {
         if (transitionState > 0 || isPlaying || isRecordingIntro || historyStack.length <= 1) return;
-        resetInteractions(); // Cancel any active drawing/dragging
-        historyStack.pop(); // Remove current state
-        phases[currentPhaseIdx] = JSON.parse(historyStack[historyStack.length - 1]); // Restore previous
+        resetInteractions(); 
+        historyStack.pop(); 
+        phases[currentPhaseIdx] = JSON.parse(historyStack[historyStack.length - 1]); 
         triggerAutoSave();
     }
 
@@ -282,7 +242,6 @@
             const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridSizeIdx: currentCellSizeIdx, gridLabelStyle: gridLabelStyle, gridPrefix: gridPrefix };
             let dataString = JSON.stringify(projectData);
             
-            // Failsafe: LocalStorage has a limit. Drop bg image if too large.
             if (dataString.length > 4500000) {
                 projectData.bgImg = null;
                 projectData.phases.forEach(p => (p.cameras || []).forEach(c => c.imgData = null));
@@ -290,23 +249,18 @@
             }
             
             localStorage.setItem('501st_tactical_autosave', dataString);
-            saveMessageAlpha = 1.0; // Trigger the toast notification
-        } catch(e) {
-            console.warn("Auto-save failed. Storage quota exceeded.", e);
-        }
+            saveMessageAlpha = 1.0; 
+        } catch(e) { console.warn("Auto-save failed. Storage quota exceeded.", e); }
     }
-    // Set to auto-save every 30 seconds
     setInterval(triggerAutoSave, 30000); 
 
     // Auto-Load on start
     window.addEventListener('DOMContentLoaded', () => {
-        saveHistory(); // Save blank initial state
+        saveHistory(); 
         const saved = localStorage.getItem('501st_tactical_autosave');
         if(saved) {
-            try {
-                loadProjectData(JSON.parse(saved));
-                console.log("Restored tactical data from auto-save.");
-            } catch(e) { console.warn("Failed to load auto-save."); }
+            try { loadProjectData(JSON.parse(saved)); console.log("Restored tactical data from auto-save."); } 
+            catch(e) { console.warn("Failed to load auto-save."); }
         }
     });
 
@@ -328,29 +282,16 @@
         else backgroundImage = null;
         
         if (isPlaying) stopPlayback();
-        historyStack = []; saveHistory(); // Reset history stack after load
-        runTransition("DATA LOADED", () => {});
+        historyStack = []; saveHistory(); runTransition("DATA LOADED", () => {});
     }
 
     // --- EVENT LISTENERS ---
     document.getElementById('colorSelect').addEventListener('change', function(e) { document.getElementById('customColorPicker').value = e.target.value; });
-    
-    document.getElementById('cellSizeSlider').addEventListener('input', function(e) { 
-        currentCellSizeIdx = parseInt(e.target.value); 
-        drawBaseMap(); 
-    });
+    document.getElementById('cellSizeSlider').addEventListener('input', function(e) { currentCellSizeIdx = parseInt(e.target.value); drawBaseMap(); });
+    document.getElementById('mgrsCheck').addEventListener('change', function(e) { gridLabelStyle = e.target.checked ? 'mgrs' : 'std'; drawBaseMap(); });
+    document.getElementById('mgrsPrefix').addEventListener('input', function(e) { gridPrefix = e.target.value; drawBaseMap(); });
 
-    document.getElementById('mgrsCheck').addEventListener('change', function(e) { 
-        gridLabelStyle = e.target.checked ? 'mgrs' : 'std';
-        drawBaseMap(); 
-    });
-
-    document.getElementById('mgrsPrefix').addEventListener('input', function(e) { 
-        gridPrefix = e.target.value;
-        drawBaseMap(); 
-    });
-
-    // --- MATH & CACHING OPTIMIZATIONS ---
+    // --- MATH & HELPERS ---
     const rgbaCache = {};
     function hexToRgba(hex, alpha) {
         const key = hex + alpha; if (rgbaCache[key]) return rgbaCache[key];
@@ -358,7 +299,6 @@
         let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); 
         const val = `rgba(${r}, ${g}, ${b}, ${alpha})`; rgbaCache[key] = val; return val;
     }
-
     function distToSegmentSquared(p, v, w) {
       let l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2); 
       if (l2 === 0) return Math.pow(p.x - v.x, 2) + Math.pow(p.y - v.y, 2);
@@ -366,52 +306,33 @@
       t = Math.max(0, Math.min(1, t)); 
       return Math.pow(p.x - (v.x + t * (w.x - v.x)), 2) + Math.pow(p.y - (v.y + t * (w.y - v.y)), 2);
     }
-
     function getMousePos(e) {
-        const rect = canvas.getBoundingClientRect(); 
-        const scale = rect.width / canvas.width; 
-        return { 
-            x: (e.clientX - rect.left) / scale, 
-            y: (e.clientY - rect.top) / scale 
-        };
+        const rect = canvas.getBoundingClientRect(); const scale = rect.width / canvas.width; 
+        return { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale };
     }
-
     function getModifiers() { return { bold: document.getElementById('boldCheck').checked, color: document.getElementById('customColorPicker').value, shape: document.getElementById('unitShapeSelect').value }; }
     function getColLabel(index) { let label = ''; let curr = index; while (curr >= 0) { label = String.fromCharCode(65 + (curr % 26)) + label; curr = Math.floor(curr / 26) - 1; } return label; }
 
-    // --- HIT DETECTION ---
     function getHoveredObject(mx, my) { 
         const phase = phases[currentPhaseIdx];
-        
         const hitText = [...(phase.texts || [])].reverse().find(t => {
-            const sc = t.scale || 1.0;
-            const fontSize = Math.floor(16 * sc); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
+            const sc = t.scale || 1.0; const fontSize = Math.floor(16 * sc); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
             const w = ctx.measureText(t.text).width; const boxPadding = 8 * sc; const boxH = fontSize * 1.5;
             return mx > t.x - w/2 - boxPadding && mx < t.x + w/2 + boxPadding && my > t.y - boxH + (fontSize*0.25) && my < t.y + (fontSize*0.5);
         }); if (hitText) return hitText;
-
-        const hitCam = [...(phase.cameras || [])].reverse().find(c => Math.hypot(mx - c.x, my - c.y) <= 20); if (hitCam) return hitCam;
         const hitUnit = [...(phase.units || [])].reverse().find(u => Math.hypot(mx - u.x, my - u.y) <= (16 * (u.scale || 1.0)) + 10); if (hitUnit) return hitUnit;
-
         const hitLine = [...(phase.lines || [])].reverse().find(l => {
             const sc = l.scale || 1.0;
-            if (l.shape === 'multi') {
-                for(let i=0; i<l.points.length-1; i++) { if (distToSegmentSquared({x: mx, y: my}, l.points[i], l.points[i+1]) < Math.pow(15 * sc, 2)) return true; }
-            } else { if (distToSegmentSquared({x: mx, y: my}, {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}) < Math.pow(15 * sc, 2)) return true; }
+            if (l.shape === 'multi') { for(let i=0; i<l.points.length-1; i++) { if (distToSegmentSquared({x: mx, y: my}, l.points[i], l.points[i+1]) < Math.pow(15 * sc, 2)) return true; } } 
+            else { if (distToSegmentSquared({x: mx, y: my}, {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}) < Math.pow(15 * sc, 2)) return true; }
         }); if (hitLine) return hitLine;
-
-        const hitDraw = [...(phase.drawings || [])].reverse().find(d => {
-            for(let i=0; i<d.points.length-1; i++) { if(distToSegmentSquared({x: mx, y: my}, d.points[i], d.points[i+1]) < 100) return true; }
-        }); if (hitDraw) return hitDraw;
-
+        const hitDraw = [...(phase.drawings || [])].reverse().find(d => { for(let i=0; i<d.points.length-1; i++) { if(distToSegmentSquared({x: mx, y: my}, d.points[i], d.points[i+1]) < 100) return true; } }); if (hitDraw) return hitDraw;
         const hitZone = [...(phase.zones || [])].reverse().find(z => {
             const sc = z.scale || 1.0;
             if (z.shape === 'circle') return Math.hypot(mx - z.x, my - z.y) <= z.r * sc;
             else if (z.shape === 'rect') return mx >= Math.min(z.x, z.x + z.w * sc) && mx <= Math.max(z.x, z.x + z.w * sc) && my >= Math.min(z.y, z.y + z.h * sc) && my <= Math.max(z.y, z.y + z.h * sc);
             else if (z.shape === 'polygon') {
-                let p = new Path2D(); p.moveTo(z.x + z.points[0].x * sc, z.y + z.points[0].y * sc);
-                for(let i=1; i<z.points.length; i++) p.lineTo(z.x + z.points[i].x * sc, z.y + z.points[i].y * sc); p.closePath();
-                return ctx.isPointInPath(p, mx, my);
+                let p = new Path2D(); p.moveTo(z.x + z.points[0].x * sc, z.y + z.points[0].y * sc); for(let i=1; i<z.points.length; i++) p.lineTo(z.x + z.points[i].x * sc, z.y + z.points[i].y * sc); p.closePath(); return ctx.isPointInPath(p, mx, my);
             }
         }); return hitZone || null;
     }
@@ -424,65 +345,24 @@
 
     function triggerSmoothTransition(newIdx) { 
         if (transitionState > 0 || isRecordingIntro) return; 
-        if (isPlaying) stopPlayback(); 
-        transOldIdx = currentPhaseIdx; transNewIdx = newIdx; transitionText = phases[newIdx].name || `PHASE ${newIdx + 1}`; 
-        transitionState = 1; transitionStartTime = null; resetInteractions(); 
-    }
-    
-    function runTransition(phaseText, callback) { 
-        if (transitionState > 0 || isRecordingIntro) return; 
-        if (isPlaying) stopPlayback();
-        transitionText = phaseText; transitionCallback = callback; transitionState = 3; 
-        transitionStartTime = null; resetInteractions(); 
+        if (isPlaying) stopPlayback(); transOldIdx = currentPhaseIdx; transNewIdx = newIdx; transitionText = phases[newIdx].name || `PHASE ${newIdx + 1}`; transitionState = 1; transitionStartTime = null; resetInteractions(); 
     }
     
     function addPhase() {
         if (transitionState > 0 || isRecordingIntro) return; 
-        const current = phases[currentPhaseIdx];
-        
-        let newUnits = JSON.parse(JSON.stringify(current.units || []));
-        if (isPlaying) {
-            newUnits.forEach((u, i) => {
-                const origUnit = current.units[i];
-                if (activeAnimations.has(origUnit)) {
-                    const anim = activeAnimations.get(origUnit);
-                    u.x = anim.pos.x;
-                    u.y = anim.pos.y;
-                    u.angle = anim.angle; 
-                }
-            });
-        }
-        
-        phases.push({ 
-            name: `PHASE ${phases.length + 1}`, 
-            units: newUnits, 
-            lines: JSON.parse(JSON.stringify(current.lines || [])), 
-            texts: JSON.parse(JSON.stringify(current.texts || [])), 
-            zones: JSON.parse(JSON.stringify(current.zones || [])), 
-            drawings: JSON.parse(JSON.stringify(current.drawings || [])), 
-            cameras: JSON.parse(JSON.stringify(current.cameras || [])) 
-        });
-        triggerSmoothTransition(phases.length - 1);
-        triggerAutoSave();
+        const current = phases[currentPhaseIdx]; let newUnits = JSON.parse(JSON.stringify(current.units || []));
+        if (isPlaying) { newUnits.forEach((u, i) => { const origUnit = current.units[i]; if (activeAnimations.has(origUnit)) { const anim = activeAnimations.get(origUnit); u.x = anim.pos.x; u.y = anim.pos.y; u.angle = anim.angle; } }); }
+        phases.push({ name: `PHASE ${phases.length + 1}`, units: newUnits, lines: JSON.parse(JSON.stringify(current.lines || [])), texts: JSON.parse(JSON.stringify(current.texts || [])), zones: JSON.parse(JSON.stringify(current.zones || [])), drawings: JSON.parse(JSON.stringify(current.drawings || [])), cameras: [] });
+        triggerSmoothTransition(phases.length - 1); triggerAutoSave();
     }
 
-    function nextPhase() { 
-        if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); 
-    }
-    
-    function prevPhase() { 
-        if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); 
-    }
+    function nextPhase() { if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); }
+    function prevPhase() { if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); }
 
     window.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
-            e.preventDefault();
-            undo();
-        }
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
         if (e.key.toLowerCase() === 'l' && transitionState === 0 && !isRecordingIntro) {
-            isSecureLocked = !isSecureLocked; 
-            document.getElementById('legendBox').style.display = isSecureLocked ? 'none' : 'block'; 
-            document.getElementById('credits-box').style.display = isSecureLocked ? 'none' : 'block'; 
+            isSecureLocked = !isSecureLocked; document.getElementById('legendBox').style.display = isSecureLocked ? 'none' : 'block'; document.getElementById('credits-box').style.display = isSecureLocked ? 'none' : 'block'; 
             if (isSecureLocked) resetInteractions();
         }
     });
@@ -490,83 +370,38 @@
     // --- ANIMATION CONTROLS ---
     function togglePlayback() {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
-        const btnPlay = document.getElementById('btnPlay');
-        const btnStop = document.getElementById('btnStop');
-        
+        const btnPlay = document.getElementById('btnPlay'); const btnStop = document.getElementById('btnStop');
         if (!isPlaying) {
             activeAnimations.clear();
-            const phase = phases[currentPhaseIdx];
-            
-            (phase.units || []).forEach(u => {
-                if(u.isKIA) return; // Dead units don't animate
-
+            (phases[currentPhaseIdx].units || []).forEach(u => {
+                if(u.isKIA) return; 
                 let targetLine = null;
-                for (let l of (phase.lines || [])) {
+                for (let l of (phases[currentPhaseIdx].lines || [])) {
                     let pts = l.shape === 'multi' ? l.points : [{x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}];
                     if(pts.length < 2) continue;
                     if (Math.hypot(u.x - pts[0].x, u.y - pts[0].y) < 30) { targetLine = pts; break; }
                     if (Math.hypot(u.x - pts[pts.length-1].x, u.y - pts[pts.length-1].y) < 30) { targetLine = [...pts].reverse(); break; }
                 }
-                
                 if (targetLine) {
                     let lengths = []; let total = 0;
-                    for(let i=0; i<targetLine.length-1; i++) {
-                        let d = Math.hypot(targetLine[i+1].x - targetLine[i].x, targetLine[i+1].y - targetLine[i].y);
-                        lengths.push(d); total += d;
-                    }
+                    for(let i=0; i<targetLine.length-1; i++) { let d = Math.hypot(targetLine[i+1].x - targetLine[i].x, targetLine[i+1].y - targetLine[i].y); lengths.push(d); total += d; }
                     let initAngle = Math.atan2(targetLine[1].y - targetLine[0].y, targetLine[1].x - targetLine[0].x) + Math.PI/2;
                     activeAnimations.set(u, { path: targetLine, lengths, total, pos: {x: u.x, y: u.y}, angle: initAngle });
                 }
             });
-            
-            isPlaying = true; 
-            isPaused = false;
-            totalPausedTime = 0;
-            playStartTime = performance.now();
-            playFinishedTime = null;
-            
-            btnPlay.style.color = '#ffcc00'; 
-            btnPlay.innerText = '|| PAUSE';
-            btnStop.style.display = 'inline-flex';
+            isPlaying = true; isPaused = false; totalPausedTime = 0; playStartTime = performance.now(); playFinishedTime = null;
+            btnPlay.style.color = '#ffcc00'; btnPlay.innerText = '|| PAUSE'; btnStop.style.display = 'inline-flex';
             setMode('move'); resetInteractions();
         } else {
-            if (isPaused) {
-                isPaused = false;
-                totalPausedTime += (performance.now() - pauseStartTime);
-                btnPlay.style.color = '#ffcc00'; 
-                btnPlay.innerText = '|| PAUSE';
-            } else {
-                isPaused = true;
-                pauseStartTime = performance.now();
-                btnPlay.style.color = '#00e64d'; 
-                btnPlay.innerText = '▶ RESUME';
-            }
+            if (isPaused) { isPaused = false; totalPausedTime += (performance.now() - pauseStartTime); btnPlay.style.color = '#ffcc00'; btnPlay.innerText = '|| PAUSE'; } 
+            else { isPaused = true; pauseStartTime = performance.now(); btnPlay.style.color = '#00e64d'; btnPlay.innerText = '▶ RESUME'; }
         }
     }
 
     function stopPlayback() {
-        isPlaying = false; 
-        isPaused = false;
-        playFinishedTime = null;
-        activeAnimations.clear();
-        
-        const btnPlay = document.getElementById('btnPlay');
-        const btnStop = document.getElementById('btnStop');
-        
-        btnPlay.style.color = '#00e64d'; 
-        btnPlay.innerText = '▶ PLAY';
-        btnStop.style.display = 'none';
+        isPlaying = false; isPaused = false; playFinishedTime = null; activeAnimations.clear();
+        document.getElementById('btnPlay').style.color = '#00e64d'; document.getElementById('btnPlay').innerText = '▶ PLAY'; document.getElementById('btnStop').style.display = 'none';
     }
-
-    // --- SYSTEM I/O ---
-    document.getElementById('dataInput').addEventListener('change', (e) => {
-        if (transitionState > 0 || isRecordingIntro) return; 
-        const file = e.target.files[0]; if (!file) return; 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try { loadProjectData(JSON.parse(event.target.result)); } catch (err) { alert("SYS ERROR: Project file is corrupted."); }
-        }; reader.readAsText(file); e.target.value = ''; 
-    });
 
     document.getElementById('cameraInput').addEventListener('change', e => {
         const file = e.target.files[0]; if (!file) return; 
@@ -575,103 +410,56 @@
             if(!phases[currentPhaseIdx].cameras) phases[currentPhaseIdx].cameras = []; 
             phases[currentPhaseIdx].cameras.push({ x: pendingCamX, y: pendingCamY, color: getModifiers().color, imgData: event.target.result, description: "GROUND VIEW" }); 
             saveHistory(); triggerAutoSave();
-        };
-        reader.readAsDataURL(file); e.target.value = ''; 
+        }; reader.readAsDataURL(file); e.target.value = ''; 
     });
 
     document.getElementById('bgInput').addEventListener('change', (e) => {
         if (transitionState > 0 || isRecordingIntro) return; 
         const file = e.target.files[0]; if (!file) return; 
         const reader = new FileReader();
-        reader.onload = (event) => { 
-            const img = new Image(); 
-            img.onload = () => { backgroundImage = img; triggerAutoSave(); }; 
-            img.src = event.target.result; 
-        }; 
+        reader.onload = (event) => { const img = new Image(); img.onload = () => { backgroundImage = img; triggerAutoSave(); }; img.src = event.target.result; }; 
         reader.readAsDataURL(file); e.target.value = ''; 
     });
 
     function exportImage() {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return; resetInteractions();
-        setTimeout(() => { 
-            try { 
-                let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
-                const link = document.createElement('a'); link.download = `${safeOp}_${phases[currentPhaseIdx].name}.png`; 
-                link.href = canvas.toDataURL("image/png"); link.click(); 
-            } catch (e) { alert("SECURITY OVERRIDE: Cannot export image. Use Print Screen."); } 
-        }, 50);
+        setTimeout(() => { try { let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); const link = document.createElement('a'); link.download = `${safeOp}_${phases[currentPhaseIdx].name}.png`; link.href = canvas.toDataURL("image/png"); link.click(); } catch (e) { alert("SECURITY OVERRIDE: Cannot export image. Use Print Screen."); } }, 50);
     }
     
     function exportData() {
         if (transitionState > 0 || isRecordingIntro) return;
-        const isMGRS = document.getElementById('mgrsCheck').checked;
-        const gPrefix = document.getElementById('mgrsPrefix').value;
+        const isMGRS = document.getElementById('mgrsCheck').checked; const gPrefix = document.getElementById('mgrsPrefix').value;
         const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridSizeIdx: currentCellSizeIdx, gridLabelStyle: (isMGRS ? 'mgrs' : 'std'), gridPrefix: gPrefix };
-        const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); 
-        const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); 
-        let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        link.download = `${safeOp}_data.json`; link.href = url; link.click(); URL.revokeObjectURL(url);
+        const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); link.download = `${safeOp}_data.json`; link.href = url; link.click(); URL.revokeObjectURL(url);
     }
     
-    function clearCanvas() { 
-        if(transitionState > 0 || isRecordingIntro) return; 
-        if(confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
-            phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
-            currentPhaseIdx = 0; syncPhasePointers(); backgroundImage = null; resetInteractions(); 
-            localStorage.removeItem('501st_tactical_autosave'); 
-            if(isPlaying) stopPlayback(); 
-            historyStack = []; saveHistory();
-        } 
-    }
-
     function toggleRecording() {
         if (isSecureLocked || transitionState > 0) return; 
         const btnRecord = document.getElementById('btnRecord');
-        
         if (!isRecording) {
-            resetInteractions();
-            isRecordingIntro = true; 
-            recIntroStartTime = null;
-            const stream = canvas.captureStream(30); 
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-            
-            mediaRecorder.ondataavailable = function(e) { 
-                if (e.data.size > 0) recordedChunks.push(e.data); 
-            };
+            resetInteractions(); isRecordingIntro = true; recIntroStartTime = null;
+            const stream = canvas.captureStream(30); mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = function() {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' }); 
-                recordedChunks = []; const url = URL.createObjectURL(blob); const link = document.createElement('a'); 
-                let safeName = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
-                link.href = url; link.download = `${safeName}_briefing.webm`; link.click(); URL.revokeObjectURL(url);
+                const blob = new Blob(recordedChunks, { type: 'video/webm' }); recordedChunks = []; const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_briefing.webm`; link.click(); URL.revokeObjectURL(url);
             }; 
-            mediaRecorder.start(); isRecording = true; 
-            btnRecord.classList.add('recording-active'); btnRecord.innerText = '[ STOP REC ]';
+            mediaRecorder.start(); isRecording = true; btnRecord.classList.add('recording-active'); btnRecord.innerText = '[ STOP REC ]';
         } else { 
-            mediaRecorder.stop(); isRecording = false; isRecordingIntro = false;
-            btnRecord.classList.remove('recording-active'); btnRecord.innerText = '[ REC ANIM ]'; 
+            mediaRecorder.stop(); isRecording = false; isRecordingIntro = false; btnRecord.classList.remove('recording-active'); btnRecord.innerText = '[ REC ANIM ]'; 
         }
     }
 
     // --- UI TOOLS ---
     function toggleGrid() {
         if (transitionState > 0 || isRecordingIntro) return; 
-        showGrid = !showGrid; const btn = document.getElementById('btnGrid'); 
-        btn.innerText = showGrid ? 'GRID: ON' : 'GRID: OFF'; 
+        showGrid = !showGrid; const btn = document.getElementById('btnGrid'); btn.innerText = showGrid ? 'GRID: ON' : 'GRID: OFF'; 
         if (showGrid) btn.classList.add('active-mode'); else btn.classList.remove('active-mode');
     }
 
     function setMode(newMode) {
-        if (transitionState > 0 || isRecordingIntro) return; 
-        mode = newMode; currentPolygon = null; currentMultiLine = null;
-        
-        const hintBox = document.getElementById('hintBox'); 
-        const zoneTools = document.getElementById('zoneTools'); 
-        const lineTools = document.getElementById('lineTools');
-        
-        ['btnMove', 'btnResize', 'btnRecolor', 'btnEditText', 'btnDraw', 'btnLine', 'btnZone', 'btnPing', 'btnCamera', 'btnKia'].forEach(id => { 
-            const el = document.getElementById(id); if (el) el.classList.remove('active-mode'); 
-        });
-        
+        if (transitionState > 0 || isRecordingIntro) return; mode = newMode; currentPolygon = null; currentMultiLine = null;
+        const hintBox = document.getElementById('hintBox'); const zoneTools = document.getElementById('zoneTools'); const lineTools = document.getElementById('lineTools');
+        ['btnMove', 'btnResize', 'btnRecolor', 'btnEditText', 'btnDraw', 'btnLine', 'btnZone', 'btnPing', 'btnKia'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active-mode'); });
         zoneTools.style.display = 'none'; lineTools.style.display = 'none';
 
         const modeData = {
@@ -683,60 +471,31 @@
             'line': {c: '#ff1a1a', t: 'OP-MODE: TACTICAL PATH<br>> SINGLE: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK LAST POINT TO FINISH<br>> RIGHT-CLICK TO ADD INTEL'},
             'zone': {c: '#00e64d', t: 'OP-MODE: SECURE ZONE<br>> CIRCLE/RECT: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK ORIGIN TO CLOSE'},
             'ping': {c: '#00e64d', t: 'OP-MODE: PING<br>> CLICK TO SEND A TEMPORARY RADAR PING TO YOUR SQUAD'},
-            'camera': {c: '#ffcc00', t: 'OP-MODE: CAMERA VIEW<br>> CLICK ON THE MAP TO PLACE A GROUND CAMERA<br>> YOU WILL BE PROMPTED TO UPLOAD A REFERENCE IMAGE'},
             'kia': {c: '#ff1a1a', t: 'OP-MODE: CASUALTY / KIA MARKER<br>> CLICK ANY UNIT TO MARK AS DESTROYED OR KIA'}
         };
-
-        if (modeData[mode]) {
-            let btnId = 'btn' + mode.charAt(0).toUpperCase() + mode.slice(1); 
-            if(btnId === 'btnEdittext') btnId = 'btnEditText';
-            const btn = document.getElementById(btnId); if(btn) btn.classList.add('active-mode');
-            hintBox.innerHTML = `<b style='color:${modeData[mode].c};'>${modeData[mode].t}</b>`; hintBox.style.borderLeftColor = modeData[mode].c;
-        }
-        if (mode === 'zone') zoneTools.style.display = 'inline-flex';
-        if (mode === 'line') lineTools.style.display = 'inline-flex';
+        if (modeData[mode]) { let btnId = 'btn' + mode.charAt(0).toUpperCase() + mode.slice(1); if(btnId === 'btnEdittext') btnId = 'btnEditText'; const btn = document.getElementById(btnId); if(btn) btn.classList.add('active-mode'); hintBox.innerHTML = `<b style='color:${modeData[mode].c};'>${modeData[mode].t}</b>`; hintBox.style.borderLeftColor = modeData[mode].c; }
+        if (mode === 'zone') zoneTools.style.display = 'inline-flex'; if (mode === 'line') lineTools.style.display = 'inline-flex';
     }
 
     function addUnit(type, forcedShape = null) {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
-        let color = '#ffffff'; 
-        if (type === 'gar') color = '#0066ff'; 
-        if (type === 'enemy') color = '#ff1a1a'; 
-        if (type === 'ally') color = '#00e64d'; 
-        if (type === 'objective') color = '#ffcc00';
-        
-        const mods = getModifiers(); 
-        const finalShape = forcedShape ? forcedShape : mods.shape;
-
+        let color = '#ffffff'; if (type === 'gar') color = '#0066ff'; if (type === 'enemy') color = '#ff1a1a'; if (type === 'ally') color = '#00e64d'; if (type === 'objective') color = '#ffcc00';
+        const mods = getModifiers(); const finalShape = forcedShape ? forcedShape : mods.shape;
         phases[currentPhaseIdx].units.push({ type: type, color: color, shape: finalShape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "", isKIA: false });
-        setMode('move');
-        saveHistory(); triggerAutoSave();
+        setMode('move'); saveHistory(); triggerAutoSave();
     }
     
     function addText() {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const txt = prompt("INPUT TACTICAL DESIGNATION:"); const mods = getModifiers();
-        if (txt && txt.trim() !== "") { 
-            phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, scale: 1.0, bold: mods.bold, description: "" }); 
-            setMode('move'); 
-            saveHistory(); triggerAutoSave();
-        }
+        if (txt && txt.trim() !== "") { phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, scale: 1.0, bold: mods.bold, description: "" }); setMode('move'); saveHistory(); triggerAutoSave(); }
     }
 
     // --- MOUSE EVENTS ---
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault(); if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
-        if (currentPolygon) { currentPolygon = null; return; }
-        if (currentMultiLine) { currentMultiLine = null; return; }
-        if (currentDrawing) { currentDrawing = null; isDragging = false; return; }
-        
-        if (currentHoverTarget) {
-            const newDesc = prompt("ENTER INTEL (DESCRIPTION) FOR THIS OBJECT:", currentHoverTarget.description || "");
-            if (newDesc !== null) {
-                currentHoverTarget.description = newDesc.trim();
-                saveHistory(); triggerAutoSave();
-            }
-        } else alert("NO ENTITY DETECTED. Right-click directly on an object to attach intel.");
+        if (currentPolygon) { currentPolygon = null; return; } if (currentMultiLine) { currentMultiLine = null; return; } if (currentDrawing) { currentDrawing = null; isDragging = false; return; }
+        if (currentHoverTarget) { const newDesc = prompt("ENTER INTEL (DESCRIPTION) FOR THIS OBJECT:", currentHoverTarget.description || ""); if (newDesc !== null) { currentHoverTarget.description = newDesc.trim(); saveHistory(); triggerAutoSave(); } } else alert("NO ENTITY DETECTED. Right-click directly on an object to attach intel.");
     });
 
     canvas.addEventListener('mousedown', e => {
@@ -744,48 +503,27 @@
         const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
         
         if (mode === 'move' || mode === 'resize') {
-            dragTarget = currentHoverTarget; 
-            if (dragTarget) { isDragging = true; startScale = dragTarget.scale || 1.0; startMouseX = mouseX; lastMouseX = mouseX; lastMouseY = mouseY; }
+            dragTarget = currentHoverTarget; if (dragTarget) { isDragging = true; startScale = dragTarget.scale || 1.0; startMouseX = mouseX; lastMouseX = mouseX; lastMouseY = mouseY; }
         } else if (mode === 'recolor') {
-            if (currentHoverTarget) { 
-                currentHoverTarget.color = document.getElementById('customColorPicker').value; 
-                saveHistory(); triggerAutoSave(); 
-            }
+            if (currentHoverTarget) { currentHoverTarget.color = document.getElementById('customColorPicker').value; saveHistory(); triggerAutoSave(); }
         } else if (mode === 'edittext') {
-            if (currentHoverTarget && currentHoverTarget.text !== undefined) { 
-                const newText = prompt("UPDATE TACTICAL DESIGNATION:", currentHoverTarget.text); 
-                if (newText !== null && newText.trim() !== "") { 
-                    currentHoverTarget.text = newText.trim().toUpperCase(); 
-                    saveHistory(); triggerAutoSave(); 
-                } 
-            }
+            if (currentHoverTarget && currentHoverTarget.text !== undefined) { const newText = prompt("UPDATE TACTICAL DESIGNATION:", currentHoverTarget.text); if (newText !== null && newText.trim() !== "") { currentHoverTarget.text = newText.trim().toUpperCase(); saveHistory(); triggerAutoSave(); } }
         } else if (mode === 'kia') {
-            if (currentHoverTarget && currentHoverTarget.type !== undefined) { 
-                currentHoverTarget.isKIA = !currentHoverTarget.isKIA; 
-                saveHistory(); triggerAutoSave(); 
-            }
+            if (currentHoverTarget && currentHoverTarget.type !== undefined) { currentHoverTarget.isKIA = !currentHoverTarget.isKIA; saveHistory(); triggerAutoSave(); }
         } else if (mode === 'line') {
-            const lShape = document.getElementById('lineShape').value; const mods = getModifiers();
-            const isInv = document.getElementById('pathInvisibleCheck').checked;
+            const lShape = document.getElementById('lineShape').value; const mods = getModifiers(); const isInv = document.getElementById('pathInvisibleCheck').checked;
             if (lShape === 'multi') {
                 if (!currentMultiLine) { currentMultiLine = { shape: 'multi', points: [{x: mouseX, y: mouseY}], color: mods.color, scale: 1.0, bold: mods.bold, invisible: isInv, description: "" }; } 
                 else {
                     const lastPt = currentMultiLine.points[currentMultiLine.points.length - 1];
-                    if (Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2) { 
-                        phases[currentPhaseIdx].lines.push(currentMultiLine); 
-                        currentMultiLine = null; 
-                        saveHistory(); triggerAutoSave(); 
-                    } else { 
-                        currentMultiLine.points.push({x: mouseX, y: mouseY}); 
-                    }
+                    if (Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2) { phases[currentPhaseIdx].lines.push(currentMultiLine); currentMultiLine = null; saveHistory(); triggerAutoSave(); } 
+                    else { currentMultiLine.points.push({x: mouseX, y: mouseY}); }
                 }
             } else { isDragging = true; currentLine = { x: mouseX, y: mouseY, x1: mouseX, y1: mouseY, x2: mouseX, y2: mouseY, color: mods.color, scale: 1.0, bold: mods.bold, invisible: isInv, description: "" }; }
         } else if (mode === 'draw') {
             isDragging = true; const mods = getModifiers(); currentDrawing = { points: [{x: mouseX, y: mouseY}], color: mods.color, bold: mods.bold, description: "" };
         } else if (mode === 'ping') {
-            activePings.push({ x: mouseX, y: mouseY, radius: 0, alpha: 1, color: getModifiers().color });
-        } else if (mode === 'camera') {
-            pendingCamX = mouseX; pendingCamY = mouseY; document.getElementById('cameraInput').click(); setMode('move'); 
+            activePings.push({ x: mouseX, y: mouseY, radius: 0, alpha: 1, color: getModifiers().color }); 
         } else if (mode === 'zone') {
             const shapeType = document.getElementById('zoneShape').value; const mods = getModifiers(); const isStriped = document.getElementById('zoneStripedCheck').checked;
             if (shapeType === 'polygon') {
@@ -796,8 +534,7 @@
                         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity; currentPolygon.points.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
                         let cx = (minX + maxX) / 2; let cy = (minY + maxY) / 2; let relPoints = currentPolygon.points.map(p => ({x: p.x - cx, y: p.y - cy}));
                         phases[currentPhaseIdx].zones.push({ shape: 'polygon', x: cx, y: cy, w: maxX - minX, h: maxY - minY, points: relPoints, color: currentPolygon.color, bold: currentPolygon.bold, striped: currentPolygon.striped, scale: 1.0, description: "" });
-                        currentPolygon = null; 
-                        saveHistory(); triggerAutoSave();
+                        currentPolygon = null; saveHistory(); triggerAutoSave();
                     } else currentPolygon.points.push({x: mouseX, y: mouseY});
                 }
             } else { isDragging = true; currentZone = { x: mouseX, y: mouseY, w: 0, h: 0, r: 0, shape: shapeType, striped: isStriped, color: mods.color, scale: 1.0, bold: mods.bold, description: "" }; }
@@ -814,15 +551,13 @@
             else if (phase.zones && phase.zones.includes(currentHoverTarget)) phase.zones.splice(phase.zones.indexOf(currentHoverTarget), 1);
             else if (phase.drawings && phase.drawings.includes(currentHoverTarget)) phase.drawings.splice(phase.drawings.indexOf(currentHoverTarget), 1);
             else if (phase.cameras && phase.cameras.includes(currentHoverTarget)) phase.cameras.splice(phase.cameras.indexOf(currentHoverTarget), 1);
-            resetInteractions();
-            saveHistory(); triggerAutoSave();
+            resetInteractions(); saveHistory(); triggerAutoSave();
         }
     });
 
     window.addEventListener('mousemove', e => {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
-
         if (!isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping') currentHoverTarget = getHoveredObject(mouseX, mouseY);
         else currentHoverTarget = null;
 
@@ -840,12 +575,9 @@
         } else if (mode === 'line' && currentLine) {
             currentLine.x2 = mouseX; currentLine.y2 = mouseY;
         } else if (mode === 'draw' && currentDrawing) {
-            if (Math.hypot(mouseX - currentDrawing.points[currentDrawing.points.length - 1].x, mouseY - currentDrawing.points[currentDrawing.points.length - 1].y) > 3) {
-                currentDrawing.points.push({x: mouseX, y: mouseY});
-            }
+            if (Math.hypot(mouseX - currentDrawing.points[currentDrawing.points.length - 1].x, mouseY - currentDrawing.points[currentDrawing.points.length - 1].y) > 3) { currentDrawing.points.push({x: mouseX, y: mouseY}); }
         } else if (mode === 'zone' && currentZone) {
-            currentZone.w = mouseX - currentZone.x; currentZone.h = mouseY - currentZone.y;
-            currentZone.r = Math.hypot(currentZone.w, currentZone.h);
+            currentZone.w = mouseX - currentZone.x; currentZone.h = mouseY - currentZone.y; currentZone.r = Math.hypot(currentZone.w, currentZone.h);
         }
         lastMouseX = mouseX; lastMouseY = mouseY;
     });
@@ -866,16 +598,10 @@
             currentZone = null;
         }
         
-        if (isDragging && dragTarget) {
-            actionOccurred = true;
-        }
-
+        if (isDragging && dragTarget) { actionOccurred = true; }
         isDragging = false; dragTarget = null; currentHoverTarget = getHoveredObject(mouseX, mouseY);
         
-        if(actionOccurred) {
-            saveHistory(); 
-            triggerAutoSave();
-        }
+        if(actionOccurred) { saveHistory(); triggerAutoSave(); }
     });
 
     // --- CANVAS RENDERERS ---
@@ -883,41 +609,28 @@
         context.save(); context.translate(cx, cy); context.rotate(angle); context.beginPath();
         if (shape === 'square') { context.rect(-size, -size, size*2, size*2); } 
         else if (shape === 'triangle') { context.moveTo(0, -size*1.2); context.lineTo(size*1.1, size*0.9); context.lineTo(-size*1.1, size*0.9); context.closePath(); } 
-        else if (shape === 'plane') { 
-            context.moveTo(0, -size*1.2); context.lineTo(size*0.2, -size*0.4); context.lineTo(size*1.2, 0); 
-            context.lineTo(size*1.2, size*0.3); context.lineTo(size*0.25, size*0.5); context.lineTo(size*0.15, size*0.9); 
-            context.lineTo(size*0.5, size*1.1); context.lineTo(size*0.5, size*1.3); context.lineTo(0, size*1.1); 
-            context.lineTo(-size*0.5, size*1.3); context.lineTo(-size*0.5, size*1.1); context.lineTo(-size*0.15, size*0.9); 
-            context.lineTo(-size*0.25, size*0.5); context.lineTo(-size*1.2, size*0.3); context.lineTo(-size*1.2, 0); 
-            context.lineTo(-size*0.2, -size*0.4); context.closePath();
-        } 
-        else if (shape === 'tank') {
-            context.rect(-size*0.35, -size*0.8, size*0.7, size*1.5);
-            context.moveTo(-size*0.85, size*0.8); context.lineTo(-size*0.85, -size*0.2);
-            context.lineTo(-size*0.45, -size*0.7); context.lineTo(-size*0.35, -size*0.7);
-            context.lineTo(-size*0.35, size*0.8); context.closePath();
-            context.moveTo(size*0.85, size*0.8); context.lineTo(size*0.85, -size*0.2);
-            context.lineTo(size*0.45, -size*0.7); context.lineTo(size*0.35, -size*0.7);
-            context.lineTo(size*0.35, size*0.8); context.closePath();
-            context.rect(-size*0.1, -size*1.3, size*0.2, size*0.6); 
-            context.arc(0, 0, size*0.4, 0, Math.PI*2); 
+        else if (shape === 'plane') { context.moveTo(0, -size*1.2); context.lineTo(size*0.2, -size*0.4); context.lineTo(size*1.2, 0); context.lineTo(size*1.2, size*0.3); context.lineTo(size*0.25, size*0.5); context.lineTo(size*0.15, size*0.9); context.lineTo(size*0.5, size*1.1); context.lineTo(size*0.5, size*1.3); context.lineTo(0, size*1.1); context.lineTo(-size*0.5, size*1.3); context.lineTo(-size*0.5, size*1.1); context.lineTo(-size*0.15, size*0.9); context.lineTo(-size*0.25, size*0.5); context.lineTo(-size*1.2, size*0.3); context.lineTo(-size*1.2, 0); context.lineTo(-size*0.2, -size*0.4); context.closePath(); } 
+        else if (shape === 'tank') { 
+            // Crisp Vector Saber Tank
+            context.rect(-size*0.4, -size*0.9, size*0.8, size*1.6); // Center Hull
+            context.rect(-size*0.9, -size*0.6, size*0.4, size*1.4); // L Tread
+            context.rect(size*0.5, -size*0.6, size*0.4, size*1.4); // R Tread
+            context.rect(-size*0.15, -size*1.3, size*0.1, size*0.6); // Twin L
+            context.rect(size*0.05, -size*1.3, size*0.1, size*0.6); // Twin R
+            context.arc(0, 0, size*0.45, 0, Math.PI*2); // Dorsal Hatch/Turret
         }
-        else if (shape === 'atte') {
-            context.moveTo(0, -size*1.1); context.lineTo(size*0.4, -size*0.8);
-            context.lineTo(size*0.5, size*0.6); context.lineTo(size*0.2, size*0.9);
-            context.lineTo(-size*0.2, size*0.9); context.lineTo(-size*0.5, size*0.6);
-            context.lineTo(-size*0.4, -size*0.8); context.closePath();
-            context.rect(-size*0.9, -size*0.6, size*0.5, size*0.2); context.rect(size*0.4, -size*0.6, size*0.5, size*0.2);
-            context.rect(-size*1.0, -size*0.1, size*0.5, size*0.2); context.rect(size*0.5, -size*0.1, size*0.5, size*0.2);
-            context.rect(-size*0.9, size*0.4, size*0.5, size*0.2); context.rect(size*0.4, size*0.4, size*0.5, size*0.2);
-            context.arc(-size*0.9, -size*0.5, size*0.15, 0, Math.PI*2); context.arc(size*0.9, -size*0.5, size*0.15, 0, Math.PI*2);
-            context.arc(-size*1.0, 0, size*0.15, 0, Math.PI*2); context.arc(size*1.0, 0, size*0.15, 0, Math.PI*2);
-            context.arc(-size*0.9, size*0.5, size*0.15, 0, Math.PI*2); context.arc(size*0.9, size*0.5, size*0.15, 0, Math.PI*2);
-            context.rect(-size*0.1, -size*1.3, size*0.2, size*1.0); context.arc(0, size*0.1, size*0.25, 0, Math.PI*2);
-            context.moveTo(size*0.1, -size*1.0); context.lineTo(size*0.15, -size*1.4); context.lineTo(size*0.2, -size*1.0);
-            context.moveTo(-size*0.1, -size*1.0); context.lineTo(-size*0.15, -size*1.4); context.lineTo(-size*0.2, -size*1.0);
-            context.moveTo(size*0.3, -size*0.9); context.lineTo(size*0.35, -size*1.3); context.lineTo(size*0.4, -size*0.9);
-            context.moveTo(-size*0.3, -size*0.9); context.lineTo(-size*0.35, -size*1.3); context.lineTo(-size*0.4, -size*0.9);
+        else if (shape === 'atte') { 
+            // Crisp Vector AT-TE Blueprint
+            context.moveTo(0, -size*1.1); context.lineTo(size*0.5, -size*0.7); context.lineTo(size*0.6, size*0.7); context.lineTo(0, size*1.1); context.lineTo(-size*0.6, size*0.7); context.lineTo(-size*0.5, -size*0.7); context.closePath();
+            context.rect(size*0.4, -size*0.85, size*0.6, size*0.25); // FR
+            context.rect(size*0.5, -size*0.15, size*0.7, size*0.3); // MR
+            context.rect(size*0.4, size*0.55, size*0.6, size*0.25); // RR
+            context.rect(-size*1.0, -size*0.85, size*0.6, size*0.25); // FL
+            context.rect(-size*1.2, -size*0.15, size*0.7, size*0.3); // ML
+            context.rect(-size*1.0, size*0.55, size*0.6, size*0.25); // RL
+            context.rect(-size*0.15, -size*1.4, size*0.3, size*1.2); // Mass Driver
+            context.rect(size*0.2, -size*1.2, size*0.15, size*0.4); // Gun L
+            context.rect(-size*0.35, -size*1.2, size*0.15, size*0.4); // Gun R
         }
         else if (shape === 'star') {
             // Star handled explicitly in unit render loop due to text scaling
@@ -930,219 +643,114 @@
         const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist < 5) return; 
         context.save(); context.translate(x1, y1); context.rotate(Math.atan2(dy, dx));
         context.beginPath(); context.moveTo(0, 0); context.lineTo(dist, 0);
-        
         context.strokeStyle = color; context.globalAlpha = invisible ? 0.05 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
         context.globalAlpha = invisible ? 0.08 : 1.0; 
-        
-        const chevSpace = 35 * scale; const offset = (timeParam * 0.025 * scale) % chevSpace;
-        context.lineWidth = (bold ? 5 : 2.5) * scale; context.lineCap = 'square'; context.lineJoin = 'miter';
+        const chevSpace = 35 * scale; const offset = (timeParam * 0.025 * scale) % chevSpace; context.lineWidth = (bold ? 5 : 2.5) * scale; context.lineCap = 'square'; context.lineJoin = 'miter';
         context.beginPath(); context.rect(0, -15*scale, dist, 30*scale); context.clip();
-        for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) {
-            context.beginPath(); context.moveTo(x - 12*scale, -8*scale); context.lineTo(x, 0); context.lineTo(x - 12*scale, 8*scale); context.stroke();
-        }
+        for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) { context.beginPath(); context.moveTo(x - 12*scale, -8*scale); context.lineTo(x, 0); context.lineTo(x - 12*scale, 8*scale); context.stroke(); }
         context.restore();
     }
 
     function drawBaseMap() {
         let startX = 0, startY = 0, mapW = canvas.width, mapH = canvas.height;
-        const isMGRS = document.getElementById('mgrsCheck').checked;
-        const gPrefix = document.getElementById('mgrsPrefix').value;
-
+        const isMGRS = document.getElementById('mgrsCheck').checked; const gPrefix = document.getElementById('mgrsPrefix').value;
         if (backgroundImage) { 
-            const imgRatio = backgroundImage.width / backgroundImage.height;
-            const canvasRatio = canvas.width / canvas.height;
-
-            if (imgRatio > canvasRatio) {
-                mapW = canvas.width;
-                mapH = canvas.width / imgRatio;
-                startX = 0;
-                startY = (canvas.height - mapH) / 2;
-            } else {
-                mapH = canvas.height;
-                mapW = canvas.height * imgRatio;
-                startX = (canvas.width - mapW) / 2;
-                startY = 0;
-            }
+            const imgRatio = backgroundImage.width / backgroundImage.height; const canvasRatio = canvas.width / canvas.height;
+            if (imgRatio > canvasRatio) { mapW = canvas.width; mapH = canvas.width / imgRatio; startX = 0; startY = (canvas.height - mapH) / 2; } 
+            else { mapH = canvas.height; mapW = canvas.height * imgRatio; startX = (canvas.width - mapW) / 2; startY = 0; }
             ctx.drawImage(backgroundImage, startX, startY, mapW, mapH);
         } else {
-            ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); 
-            ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
+            ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
             for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
         }
         
         if (showGrid) {
             ctx.save();
-            const cols = gridDivisions[Math.min(currentCellSizeIdx, gridDivisions.length - 1)] || 24;
-            const cSize = mapW / cols;
-            const rows = Math.floor(mapH / cSize);
-
-            const uColor = document.getElementById('gridColorPicker').value;
-            ctx.strokeStyle = hexToRgba(uColor, 0.4); ctx.lineWidth = 2; 
-            
-            // Draw Grid Lines
+            const cols = gridDivisions[Math.min(currentCellSizeIdx, gridDivisions.length - 1)] || 24; const cSize = mapW / cols; const rows = Math.floor(mapH / cSize);
+            const uColor = document.getElementById('gridColorPicker').value; ctx.strokeStyle = hexToRgba(uColor, 0.4); ctx.lineWidth = 2; 
             ctx.beginPath();
-            for (let i = 0; i <= cols; i++) { 
-                ctx.moveTo(startX + (i * cSize), startY); 
-                ctx.lineTo(startX + (i * cSize), startY + mapH); 
-            }
-            for (let j = 0; j <= rows; j++) { 
-                ctx.moveTo(startX, startY + (j * cSize)); 
-                ctx.lineTo(startX + mapW, startY + (j * cSize)); 
-            }
+            for (let i = 0; i <= cols; i++) { ctx.moveTo(startX + (i * cSize), startY); ctx.lineTo(startX + (i * cSize), startY + mapH); }
+            for (let j = 0; j <= rows; j++) { ctx.moveTo(startX, startY + (j * cSize)); ctx.lineTo(startX + mapW, startY + (j * cSize)); }
             ctx.stroke();
 
-            // Draw clean axis bars Over Grid
-            ctx.fillStyle = 'rgba(8, 10, 13, 0.85)';
-            ctx.fillRect(startX, startY, mapW, 24); // Top edge
-            ctx.fillRect(startX, startY, 32, mapH); // Left edge
-
-            // Text Setup
-            ctx.fillStyle = hexToRgba(uColor, 0.9); 
-            ctx.textAlign = "center"; 
-            ctx.textBaseline = "middle";
+            ctx.fillStyle = 'rgba(8, 10, 13, 0.85)'; ctx.fillRect(startX, startY, mapW, 24); ctx.fillRect(startX, startY, 32, mapH); 
+            ctx.fillStyle = hexToRgba(uColor, 0.9); ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
             for (let i = 0; i < cols; i++) { 
-                let labelX = isMGRS ? String(i).padStart(2, '0') : getColLabel(i);
-                ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
+                let labelX = isMGRS ? String(i).padStart(2, '0') : getColLabel(i); ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
                 ctx.fillText(labelX, startX + (i * cSize) + (cSize / 2), startY + 12); 
             } 
             for (let j = 0; j < rows; j++) { 
-                let labelY = isMGRS ? String(j).padStart(2, '0') : (j + 1);
-                ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
+                let labelY = isMGRS ? String(j).padStart(2, '0') : (j + 1); ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
                 ctx.fillText(labelY, startX + 16, startY + (j * cSize) + (cSize / 2)); 
             }
-
-            // Draw Corner Block to cover intersecting text
             let cornerW = (isMGRS && gPrefix.trim() !== "") ? Math.max(80, cSize) : 32;
-            ctx.fillStyle = 'rgba(10, 12, 16, 1)';
-            ctx.fillRect(startX, startY, cornerW, 24);
-
-            if (isMGRS && gPrefix.trim() !== "") {
-                ctx.fillStyle = '#ffcc00';
-                ctx.font = "bold 12px 'Courier New', Courier, monospace";
-                ctx.fillText(gPrefix, startX + cornerW / 2, startY + 12);
-            }
+            ctx.fillStyle = 'rgba(10, 12, 16, 1)'; ctx.fillRect(startX, startY, cornerW, 24);
+            if (isMGRS && gPrefix.trim() !== "") { ctx.fillStyle = '#ffcc00'; ctx.font = "bold 12px 'Courier New', Courier, monospace"; ctx.fillText(gPrefix, startX + cornerW / 2, startY + 12); }
             ctx.restore();
         }
     }
 
     function drawTacticalElements(context, phaseData, timeParam) {
         (phaseData.zones || []).forEach(z => {
-            const zScale = z.scale || 1.0;
-            context.save(); context.beginPath();
+            const zScale = z.scale || 1.0; context.save(); context.beginPath();
             if (z.shape === 'circle') context.arc(z.x, z.y, z.r * zScale, 0, Math.PI*2);
             else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * zScale, z.h * zScale);
-            else if (z.shape === 'polygon') {
-                context.moveTo(z.x + z.points[0].x * zScale, z.y + z.points[0].y * zScale);
-                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale);
-                context.closePath();
-            }
+            else if (z.shape === 'polygon') { context.moveTo(z.x + z.points[0].x * zScale, z.y + z.points[0].y * zScale); for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale); context.closePath(); }
             context.clip(); context.fillStyle = hexToRgba(z.color, 0.15); context.fill(); 
             if (z.striped) {
                 context.save(); let cx = z.x, cy = z.y, maxDim = 0;
-                if (z.shape === 'circle') maxDim = z.r * 2 * zScale;
-                else { cx = z.x + (z.w * zScale)/2; cy = z.y + (z.h * zScale)/2; maxDim = Math.hypot(z.w * zScale, z.h * zScale) * 1.5; }
+                if (z.shape === 'circle') maxDim = z.r * 2 * zScale; else { cx = z.x + (z.w * zScale)/2; cy = z.y + (z.h * zScale)/2; maxDim = Math.hypot(z.w * zScale, z.h * zScale) * 1.5; }
                 context.translate(cx, cy); context.rotate(-Math.PI / 4); context.strokeStyle = hexToRgba(z.color, 0.4); context.lineWidth = 12 * zScale; 
-                const spacing = 24 * zScale; const speed = 0.025 * zScale; const offset = (timeParam * speed) % spacing;
-                context.beginPath(); 
-                for (let i = -maxDim; i <= maxDim; i += spacing) { context.moveTo(-maxDim, i + offset); context.lineTo(maxDim, i + offset); }
-                context.stroke(); context.restore();
+                const spacing = 24 * zScale; const speed = 0.025 * zScale; const offset = (timeParam * speed) % spacing; context.beginPath(); 
+                for (let i = -maxDim; i <= maxDim; i += spacing) { context.moveTo(-maxDim, i + offset); context.lineTo(maxDim, i + offset); } context.stroke(); context.restore();
             }
-            context.restore(); 
-            context.beginPath();
+            context.restore(); context.beginPath();
             if (z.shape === 'circle') context.arc(z.x, z.y, z.r * zScale, 0, Math.PI*2);
             else if (z.shape === 'rect') context.rect(z.x, z.y, z.w * zScale, z.h * zScale);
-            else if (z.shape === 'polygon') {
-                context.moveTo(z.x + z.points[0].x * zScale, z.y + z.points[0].y * zScale);
-                for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale); context.closePath();
-            }
+            else if (z.shape === 'polygon') { context.moveTo(z.x + z.points[0].x * zScale, z.y + z.points[0].y * zScale); for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale); context.closePath(); }
             context.strokeStyle = z.color; context.lineWidth = (z.bold ? 4 : 2) * zScale; context.stroke();
             if (dragTarget === z && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
         (phaseData.lines || []).forEach(l => {
             const lScale = l.scale || 1.0;
-            if (isPlaying && l.invisible) return; // Stealth Hide
-            if (dragTarget === l && !isPlaying && !isRecordingIntro) {
-                context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * lScale;
-                context.beginPath(); 
-                if (l.shape === 'multi') { context.moveTo(l.points[0].x, l.points[0].y); for(let i=1; i<l.points.length; i++) context.lineTo(l.points[i].x, l.points[i].y); } 
-                else { context.moveTo(l.x1, l.y1); context.lineTo(l.x2, l.y2); }
-                context.stroke(); context.restore();
-            }
-            if (l.shape === 'multi') {
-                for(let i=0; i<l.points.length-1; i++) drawSegment(context, l.points[i].x, l.points[i].y, l.points[i+1].x, l.points[i+1].y, l.color, l.bold, lScale, timeParam, l.invisible);
-            } else { drawSegment(context, l.x1, l.y1, l.x2, l.y2, l.color, l.bold, lScale, timeParam, l.invisible); }
+            if (isPlaying && l.invisible) return; 
+            if (dragTarget === l && !isPlaying && !isRecordingIntro) { context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * lScale; context.beginPath(); if (l.shape === 'multi') { context.moveTo(l.points[0].x, l.points[0].y); for(let i=1; i<l.points.length; i++) context.lineTo(l.points[i].x, l.points[i].y); } else { context.moveTo(l.x1, l.y1); context.lineTo(l.x2, l.y2); } context.stroke(); context.restore(); }
+            if (l.shape === 'multi') { for(let i=0; i<l.points.length-1; i++) drawSegment(context, l.points[i].x, l.points[i].y, l.points[i+1].x, l.points[i+1].y, l.color, l.bold, lScale, timeParam, l.invisible); } else { drawSegment(context, l.x1, l.y1, l.x2, l.y2, l.color, l.bold, lScale, timeParam, l.invisible); }
         });
 
         (phaseData.drawings || []).forEach(d => {
-            if (d.points.length < 2) return;
-            context.beginPath(); context.moveTo(d.points[0].x, d.points[0].y);
-            for(let i=1; i<d.points.length; i++) context.lineTo(d.points[i].x, d.points[i].y);
-            context.strokeStyle = d.color; context.lineWidth = d.bold ? 4 : 2; context.lineJoin = 'round'; context.lineCap = 'round'; context.stroke();
+            if (d.points.length < 2) return; context.beginPath(); context.moveTo(d.points[0].x, d.points[0].y); for(let i=1; i<d.points.length; i++) context.lineTo(d.points[i].x, d.points[i].y); context.strokeStyle = d.color; context.lineWidth = d.bold ? 4 : 2; context.lineJoin = 'round'; context.lineCap = 'round'; context.stroke();
             if (dragTarget === d && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
-        (phaseData.cameras || []).forEach(c => {
-            context.save(); context.translate(c.x, c.y);
-            context.fillStyle = hexToRgba(c.color, 0.2); context.strokeStyle = c.color; context.lineWidth = 2;
-            context.beginPath(); context.moveTo(-12, -6); context.lineTo(-6, -12); context.lineTo(6, -12); context.lineTo(12, -6); context.lineTo(12, 10); context.lineTo(-12, 10); context.closePath(); context.fill(); context.stroke();
-            context.fillStyle = '#0a0c0e'; context.beginPath(); context.arc(0, 1, 5, 0, Math.PI*2); context.fill(); context.strokeStyle = c.color; context.stroke();
-            context.fillStyle = c.color; context.beginPath(); context.arc(7, -3, 1.5, 0, Math.PI*2); context.fill();
-            if (dragTarget === c && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
-            context.restore();
-        });
-
         (phaseData.units || []).forEach(u => {
-            const uScale = u.scale || 1.0;
-            const currentSize = 16 * uScale; const strokeW = (u.bold ? 4 : 2) * uScale; const innerStrokeW = 1.5 * uScale;
+            const uScale = u.scale || 1.0; const currentSize = 16 * uScale; const strokeW = (u.bold ? 4 : 2) * uScale; const innerStrokeW = 1.5 * uScale;
             let cx = u.x; let cy = u.y; let rot = u.angle || 0;
             if (activeAnimations.has(u)) { let anim = activeAnimations.get(u); cx = anim.pos.x; cy = anim.pos.y; rot = anim.angle; }
             
-            context.save();
-            context.translate(cx, cy);
-            context.rotate(rot);
-
+            context.save(); context.translate(cx, cy); context.rotate(rot);
             if (u.isKIA) { context.globalAlpha = 0.35; } 
 
             const isSpecialist = u.shape === 'star';
-
             if (isSpecialist) {
-                context.font = `bold ${32*uScale}px 'Courier New', Courier, monospace`;
-                context.textAlign = "center"; context.textBaseline = "middle";
-                context.fillStyle = u.color; 
-                context.fillText('★', 0, 2*uScale); 
-                
-                context.beginPath(); context.arc(0, 0, currentSize*1.1, 0, Math.PI*2);
-                context.fillStyle = "rgba(0,0,0,0.1)"; context.fill();
-                context.lineWidth = strokeW/1.5; context.strokeStyle = '#000000'; context.stroke();
+                context.font = `bold ${32*uScale}px 'Courier New', Courier, monospace`; context.textAlign = "center"; context.textBaseline = "middle"; context.fillStyle = u.color; context.fillText('★', 0, 2*uScale); 
+                context.beginPath(); context.arc(0, 0, currentSize*1.1, 0, Math.PI*2); context.fillStyle = "rgba(0,0,0,0.1)"; context.fill(); context.lineWidth = strokeW/1.5; context.strokeStyle = '#000000'; context.stroke();
             } else {
-                context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, 0, 4*uScale, currentSize); context.fill();
-                context.fillStyle = u.color; drawShape(context, u.shape, 0, 0, currentSize); context.fill();
-                context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
-                context.save(); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown);
-                context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
+                context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, 0, 4*uScale, currentSize); context.fill(); context.fillStyle = u.color; drawShape(context, u.shape, 0, 0, currentSize); context.fill(); context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
+                context.save(); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown); context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
             }
 
-            // SMALLER Red Tactical X over KIA units
+            // SMALLER, CRISPER Red Tactical X
             if (u.isKIA) {
-                context.globalAlpha = 1.0;
-                context.strokeStyle = '#ff1a1a';
-                context.lineWidth = 3 * uScale; // Thinner X
-                context.beginPath();
-                let xSize = currentSize * 0.7; // Tighter bounds around the icon core
-                context.moveTo(-xSize, -xSize); context.lineTo(xSize, xSize);
-                context.moveTo(xSize, -xSize); context.lineTo(-xSize, xSize);
-                context.stroke();
+                context.globalAlpha = 1.0; context.strokeStyle = '#ff1a1a'; context.lineWidth = 3 * uScale; context.beginPath();
+                let xSize = currentSize * 0.6; // Smaller bounds
+                context.moveTo(-xSize, -xSize); context.lineTo(xSize, xSize); context.moveTo(xSize, -xSize); context.lineTo(-xSize, xSize); context.stroke();
             }
 
-            if (dragTarget === u && !isPlaying && !isRecordingIntro) { 
-                context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); 
-                let bbSize = isSpecialist ? currentSize*1.4 : currentSize*1.3;
-                context.strokeRect(-bbSize, -bbSize, bbSize*2, bbSize*2); context.setLineDash([]); 
-            }
-            
+            if (dragTarget === u && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); let bbSize = isSpecialist ? currentSize*1.4 : currentSize*1.3; context.strokeRect(-bbSize, -bbSize, bbSize*2, bbSize*2); context.setLineDash([]); }
             context.restore();
         });
 
@@ -1153,8 +761,7 @@
             
             if (t.boxed) {
                 ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * tScale; 
-                ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); 
-                ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); 
+                ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); 
             }
             context.fillStyle = t.color; context.textAlign = "center"; context.fillText(t.text, 0, 0);
 
@@ -1165,9 +772,7 @@
 
     function drawTransitionOverlay() {
         if (transitionAlpha <= 0) return;
-        ctx.save(); ctx.globalAlpha = transitionAlpha;
-        ctx.fillStyle = 'rgba(10, 16, 24, 0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
+        ctx.save(); ctx.globalAlpha = transitionAlpha; ctx.fillStyle = 'rgba(10, 16, 24, 0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
         const fontSize = Math.max(30, canvas.width * 0.04); ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         const textToDraw = transitionText; const letterSpacing = 8; let currentX = canvas.width / 2; const cy = canvas.height / 2;
         ctx.shadowColor = 'rgba(109, 164, 207, 0.8)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(10, 16, 24, 0.9)'; ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4;
@@ -1180,16 +785,8 @@
 
     function drawRecordingIntro(elapsed) {
         let overlayAlpha = 1.0; let textAlpha = 0.0; let currentText = "";
-        
-        if (elapsed < 300) { textAlpha = elapsed/300; currentText = operationName; }
-        else if (elapsed < 1200) { textAlpha = 1; currentText = operationName; }
-        else if (elapsed < 1500) { textAlpha = 1 - (elapsed-1200)/300; currentText = operationName; }
-        else if (elapsed < 1800) { textAlpha = (elapsed-1500)/300; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-        else if (elapsed < 2700) { textAlpha = 1; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-        else if (elapsed <= 3000) { let fadeOut = 1 - (elapsed-2700)/300; textAlpha = fadeOut; overlayAlpha = fadeOut; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-
-        ctx.save(); ctx.globalAlpha = overlayAlpha; ctx.fillStyle = '#050608'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
+        if (elapsed < 300) { textAlpha = elapsed/300; currentText = operationName; } else if (elapsed < 1200) { textAlpha = 1; currentText = operationName; } else if (elapsed < 1500) { textAlpha = 1 - (elapsed-1200)/300; currentText = operationName; } else if (elapsed < 1800) { textAlpha = (elapsed-1500)/300; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; } else if (elapsed < 2700) { textAlpha = 1; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; } else if (elapsed <= 3000) { let fadeOut = 1 - (elapsed-2700)/300; textAlpha = fadeOut; overlayAlpha = fadeOut; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+        ctx.save(); ctx.globalAlpha = overlayAlpha; ctx.fillStyle = '#050608'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
         if (textAlpha > 0) {
             ctx.globalAlpha = textAlpha; const fontSize = Math.max(30, canvas.width * 0.04); ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
             const letterSpacing = 8; let currentX = canvas.width / 2; const cy = canvas.height / 2;
@@ -1206,196 +803,108 @@
     function animate(time) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 1. PLAYBACK
         if (isPlaying) {
-            let timeToUse = isPaused ? pauseStartTime : time;
-            let elapsed = timeToUse - playStartTime - totalPausedTime; 
-            let progress = Math.min(elapsed / PLAY_DURATION, 1.0);
-            
+            let timeToUse = isPaused ? pauseStartTime : time; let elapsed = timeToUse - playStartTime - totalPausedTime; let progress = Math.min(elapsed / PLAY_DURATION, 1.0);
             for (let [u, anim] of activeAnimations.entries()) {
                 let targetDist = progress * anim.total; let currentDist = 0; let found = false;
                 for (let i = 0; i < anim.lengths.length; i++) {
                     if (currentDist + anim.lengths[i] >= targetDist) {
-                        let segProgress = (targetDist - currentDist) / anim.lengths[i];
-                        let p1 = anim.path[i]; let p2 = anim.path[i+1];
-                        anim.pos.x = p1.x + (p2.x - p1.x) * segProgress; anim.pos.y = p1.y + (p2.y - p1.y) * segProgress;
-                        anim.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) + Math.PI/2; found = true; break;
+                        let segProgress = (targetDist - currentDist) / anim.lengths[i]; let p1 = anim.path[i]; let p2 = anim.path[i+1];
+                        anim.pos.x = p1.x + (p2.x - p1.x) * segProgress; anim.pos.y = p1.y + (p2.y - p1.y) * segProgress; anim.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) + Math.PI/2; found = true; break;
                     }
                     currentDist += anim.lengths[i];
                 }
-                if (!found && anim.path.length > 0) {
-                    let last = anim.path[anim.path.length - 1]; let prev = anim.path[Math.max(0, anim.path.length - 2)];
-                    anim.pos.x = last.x; anim.pos.y = last.y; anim.angle = Math.atan2(last.y - prev.y, last.x - prev.x) + Math.PI/2;
-                }
+                if (!found && anim.path.length > 0) { let last = anim.path[anim.path.length - 1]; let prev = anim.path[Math.max(0, anim.path.length - 2)]; anim.pos.x = last.x; anim.pos.y = last.y; anim.angle = Math.atan2(last.y - prev.y, last.x - prev.x) + Math.PI/2; }
             }
+            if (progress >= 1.0 && !isPaused) { if (!playFinishedTime) playFinishedTime = time; else if (time - playFinishedTime > 1000) { if (isRecording && currentPhaseIdx < phases.length - 1) { triggerSmoothTransition(currentPhaseIdx + 1); } } } else { playFinishedTime = null; }
+        } else { playFinishedTime = null; }
 
-            // AUTO-ADVANCE FOR RECORDING
-            if (progress >= 1.0 && !isPaused) {
-                if (!playFinishedTime) playFinishedTime = time;
-                else if (time - playFinishedTime > 1000) { // 1 second delay
-                    if (isRecording && currentPhaseIdx < phases.length - 1) {
-                        triggerSmoothTransition(currentPhaseIdx + 1);
-                    }
-                }
-            } else {
-                playFinishedTime = null;
-            }
-        } else {
-            playFinishedTime = null;
-        }
-
-        // 2. RECORDING INTRO
         if (isRecordingIntro) {
             if (!recIntroStartTime) recIntroStartTime = time; let elapsed = time - recIntroStartTime;
-            if (elapsed > 3000) { isRecordingIntro = false; } 
-            else { drawBaseMap(); drawTacticalElements(ctx, phases[currentPhaseIdx], time); drawRecordingIntro(elapsed); requestAnimationFrame(animate); return; }
+            if (elapsed > 3000) { isRecordingIntro = false; } else { drawBaseMap(); drawTacticalElements(ctx, phases[currentPhaseIdx], time); drawRecordingIntro(elapsed); requestAnimationFrame(animate); return; }
         }
 
-        // 3. TRANSITIONS
         let transSweepProgress = 0;
         if (transitionState === 1 || transitionState === 3) {
             if (!transitionStartTime) transitionStartTime = time; let elapsed = time - transitionStartTime;
-            if (elapsed < 200) { transitionAlpha = elapsed / 200; transSweepProgress = 0; } 
-            else if (elapsed < 800) { transitionAlpha = 1; transSweepProgress = (elapsed - 200) / 600; if (transitionState === 3 && transitionCallback) { transitionCallback(); transitionCallback = null; } } 
-            else if (elapsed < 1000) { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionAlpha = 1 - ((elapsed - 800) / 200); transSweepProgress = 1; } 
-            else { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionState = 0; transitionAlpha = 0; transitionStartTime = null; }
+            if (elapsed < 200) { transitionAlpha = elapsed / 200; transSweepProgress = 0; } else if (elapsed < 800) { transitionAlpha = 1; transSweepProgress = (elapsed - 200) / 600; if (transitionState === 3 && transitionCallback) { transitionCallback(); transitionCallback = null; } } else if (elapsed < 1000) { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionAlpha = 1 - ((elapsed - 800) / 200); transSweepProgress = 1; } else { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionState = 0; transitionAlpha = 0; transitionStartTime = null; }
         }
 
-        // 4. LOCKDOWN 
         if (isSecureLocked) {
             ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
-            requestAnimationFrame(animate); return; 
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); } requestAnimationFrame(animate); return; 
         }
         
-        // 5. MAP BASE
         drawBaseMap();
 
-        if (transitionState === 0 || transitionState === 3) {
-            drawTacticalElements(ctx, phases[currentPhaseIdx], time);
-        } else if (transitionState === 1) {
+        if (transitionState === 0 || transitionState === 3) { drawTacticalElements(ctx, phases[currentPhaseIdx], time); } 
+        else if (transitionState === 1) {
             let sweepX = canvas.width * transSweepProgress; 
             ctx.save(); ctx.beginPath(); ctx.rect(0, 0, sweepX, canvas.height); ctx.clip(); drawTacticalElements(ctx, phases[transNewIdx], time); ctx.restore();
             ctx.save(); ctx.beginPath(); ctx.rect(sweepX, 0, canvas.width - sweepX, canvas.height); ctx.clip(); drawTacticalElements(ctx, phases[transOldIdx], time); ctx.restore();
-            if (transSweepProgress > 0 && transSweepProgress < 1) {
-                ctx.beginPath(); ctx.moveTo(sweepX, 0); ctx.lineTo(sweepX, canvas.height); ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4; ctx.shadowColor = '#6DA4CF'; ctx.shadowBlur = 15; ctx.stroke(); ctx.shadowBlur = 0;
-            }
+            if (transSweepProgress > 0 && transSweepProgress < 1) { ctx.beginPath(); ctx.moveTo(sweepX, 0); ctx.lineTo(sweepX, canvas.height); ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4; ctx.shadowColor = '#6DA4CF'; ctx.shadowBlur = 15; ctx.stroke(); ctx.shadowBlur = 0; }
         }
 
-        // 6. ACTIVE DRAWING PREVIEWS
         if (currentPolygon && transitionState === 0) {
-            ctx.save(); ctx.strokeStyle = currentPolygon.color; ctx.lineWidth = currentPolygon.bold ? 4 : 2;
-            ctx.beginPath(); ctx.moveTo(currentPolygon.points[0].x, currentPolygon.points[0].y);
+            ctx.save(); ctx.strokeStyle = currentPolygon.color; ctx.lineWidth = currentPolygon.bold ? 4 : 2; ctx.beginPath(); ctx.moveTo(currentPolygon.points[0].x, currentPolygon.points[0].y);
             for(let i=1; i<currentPolygon.points.length; i++) ctx.lineTo(currentPolygon.points[i].x, currentPolygon.points[i].y);
-            const distToStart = Math.hypot(mouseX - currentPolygon.points[0].x, mouseY - currentPolygon.points[0].y);
-            const canClose = distToStart < 20 && currentPolygon.points.length >= 3;
+            const distToStart = Math.hypot(mouseX - currentPolygon.points[0].x, mouseY - currentPolygon.points[0].y); const canClose = distToStart < 20 && currentPolygon.points.length >= 3;
             if (canClose) ctx.lineTo(currentPolygon.points[0].x, currentPolygon.points[0].y); else ctx.lineTo(mouseX, mouseY);
-            ctx.stroke(); ctx.beginPath(); ctx.arc(currentPolygon.points[0].x, currentPolygon.points[0].y, 6, 0, Math.PI*2);
-            ctx.fillStyle = canClose ? '#00ff00' : currentPolygon.color; if (canClose) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10; }
-            ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); }
-            ctx.restore();
+            ctx.stroke(); ctx.beginPath(); ctx.arc(currentPolygon.points[0].x, currentPolygon.points[0].y, 6, 0, Math.PI*2); ctx.fillStyle = canClose ? '#00ff00' : currentPolygon.color; if (canClose) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10; }
+            ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); } ctx.restore();
         }
 
         if (currentZone && transitionState === 0) {
-            ctx.save();
-            ctx.beginPath();
-            if (currentZone.shape === 'circle') ctx.arc(currentZone.x, currentZone.y, currentZone.r, 0, Math.PI*2);
-            else if (currentZone.shape === 'rect') ctx.rect(currentZone.x, currentZone.y, currentZone.w, currentZone.h);
+            ctx.save(); ctx.beginPath(); if (currentZone.shape === 'circle') ctx.arc(currentZone.x, currentZone.y, currentZone.r, 0, Math.PI*2); else if (currentZone.shape === 'rect') ctx.rect(currentZone.x, currentZone.y, currentZone.w, currentZone.h);
             ctx.clip(); ctx.fillStyle = hexToRgba(currentZone.color, 0.15); ctx.fill(); 
             if (currentZone.striped) {
-                ctx.save(); let cx = currentZone.x, cy = currentZone.y, maxDim = 0;
-                if (currentZone.shape === 'circle') maxDim = currentZone.r * 2;
-                else { cx = currentZone.x + currentZone.w/2; cy = currentZone.y + currentZone.h/2; maxDim = Math.hypot(currentZone.w, currentZone.h) * 1.5; }
-                ctx.translate(cx, cy); ctx.rotate(-Math.PI / 4); ctx.strokeStyle = hexToRgba(currentZone.color, 0.4); ctx.lineWidth = 12; 
-                const spacing = 24; const speed = 0.025; const offset = (time * speed) % spacing;
-                ctx.beginPath(); 
-                for (let i = -maxDim; i <= maxDim; i += spacing) { ctx.moveTo(-maxDim, i + offset); ctx.lineTo(maxDim, i + offset); }
-                ctx.stroke(); ctx.restore();
+                ctx.save(); let cx = currentZone.x, cy = currentZone.y, maxDim = 0; if (currentZone.shape === 'circle') maxDim = currentZone.r * 2; else { cx = currentZone.x + currentZone.w/2; cy = currentZone.y + currentZone.h/2; maxDim = Math.hypot(currentZone.w, currentZone.h) * 1.5; }
+                ctx.translate(cx, cy); ctx.rotate(-Math.PI / 4); ctx.strokeStyle = hexToRgba(currentZone.color, 0.4); ctx.lineWidth = 12; const spacing = 24; const speed = 0.025; const offset = (time * speed) % spacing;
+                ctx.beginPath(); for (let i = -maxDim; i <= maxDim; i += spacing) { ctx.moveTo(-maxDim, i + offset); ctx.lineTo(maxDim, i + offset); } ctx.stroke(); ctx.restore();
             }
-            ctx.restore();
-            ctx.beginPath();
-            if (currentZone.shape === 'circle') ctx.arc(currentZone.x, currentZone.y, currentZone.r, 0, Math.PI*2);
-            else if (currentZone.shape === 'rect') ctx.rect(currentZone.x, currentZone.y, currentZone.w, currentZone.h);
+            ctx.restore(); ctx.beginPath(); if (currentZone.shape === 'circle') ctx.arc(currentZone.x, currentZone.y, currentZone.r, 0, Math.PI*2); else if (currentZone.shape === 'rect') ctx.rect(currentZone.x, currentZone.y, currentZone.w, currentZone.h);
             ctx.strokeStyle = currentZone.color; ctx.lineWidth = currentZone.bold ? 4 : 2; ctx.stroke();
         }
         
-        if (currentLine && transitionState === 0) { 
-            drawSegment(ctx, currentLine.x1, currentLine.y1, currentLine.x2, currentLine.y2, currentLine.color, currentLine.bold, currentLine.scale, time, currentLine.invisible);
-        }
-        
-        if (currentDrawing && transitionState === 0) { 
-            ctx.beginPath(); ctx.moveTo(currentDrawing.points[0].x, currentDrawing.points[0].y); 
-            for(let i=1; i<currentDrawing.points.length; i++) ctx.lineTo(currentDrawing.points[i].x, currentDrawing.points[i].y); 
-            ctx.strokeStyle = currentDrawing.color; ctx.lineWidth = currentDrawing.bold ? 4 : 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke(); 
-        }
-
+        if (currentLine && transitionState === 0) { drawSegment(ctx, currentLine.x1, currentLine.y1, currentLine.x2, currentLine.y2, currentLine.color, currentLine.bold, currentLine.scale, time, currentLine.invisible); }
+        if (currentDrawing && transitionState === 0) { ctx.beginPath(); ctx.moveTo(currentDrawing.points[0].x, currentDrawing.points[0].y); for(let i=1; i<currentDrawing.points.length; i++) ctx.lineTo(currentDrawing.points[i].x, currentDrawing.points[i].y); ctx.strokeStyle = currentDrawing.color; ctx.lineWidth = currentDrawing.bold ? 4 : 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke(); }
         if (currentMultiLine && transitionState === 0) {
-            for (let i = 0; i < currentMultiLine.points.length - 1; i++) {
-                drawSegment(ctx, currentMultiLine.points[i].x, currentMultiLine.points[i].y, currentMultiLine.points[i+1].x, currentMultiLine.points[i+1].y, currentMultiLine.color, currentMultiLine.bold, currentMultiLine.scale, time, currentMultiLine.invisible);
-            }
-            const lastPt = currentMultiLine.points[currentMultiLine.points.length - 1];
-            drawSegment(ctx, lastPt.x, lastPt.y, mouseX, mouseY, currentMultiLine.color, currentMultiLine.bold, currentMultiLine.scale, time, currentMultiLine.invisible);
-            
-            const canClose = Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2;
-            ctx.beginPath(); ctx.arc(lastPt.x, lastPt.y, 6, 0, Math.PI*2); ctx.fillStyle = canClose ? '#00ff00' : currentMultiLine.color;
+            for (let i = 0; i < currentMultiLine.points.length - 1; i++) { drawSegment(ctx, currentMultiLine.points[i].x, currentMultiLine.points[i].y, currentMultiLine.points[i+1].x, currentMultiLine.points[i+1].y, currentMultiLine.color, currentMultiLine.bold, currentMultiLine.scale, time, currentMultiLine.invisible); }
+            const lastPt = currentMultiLine.points[currentMultiLine.points.length - 1]; drawSegment(ctx, lastPt.x, lastPt.y, mouseX, mouseY, currentMultiLine.color, currentMultiLine.bold, currentMultiLine.scale, time, currentMultiLine.invisible);
+            const canClose = Math.hypot(mouseX - lastPt.x, mouseY - lastPt.y) < 20 && currentMultiLine.points.length >= 2; ctx.beginPath(); ctx.arc(lastPt.x, lastPt.y, 6, 0, Math.PI*2); ctx.fillStyle = canClose ? '#00ff00' : currentMultiLine.color;
             if (canClose) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10; } ctx.fill(); if (canClose) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); } ctx.shadowBlur = 0;
         }
 
         if (transitionState === 0) {
             for (let i = activePings.length - 1; i >= 0; i--) {
-                let p = activePings[i]; p.radius += 2.5; p.alpha -= 0.015;
-                if (p.alpha <= 0) { activePings.splice(i, 1); continue; }
+                let p = activePings[i]; p.radius += 2.5; p.alpha -= 0.015; if (p.alpha <= 0) { activePings.splice(i, 1); continue; }
                 ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.strokeStyle = hexToRgba(p.color, p.alpha); ctx.lineWidth = 4; ctx.stroke();
                 ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fillStyle = hexToRgba(p.color, p.alpha); ctx.fill(); ctx.restore();
             }
         }
 
-        // 7. LIVE MGRS MOUSE TRACKER
         const isMGRS = document.getElementById('mgrsCheck').checked;
         if (showGrid && isMGRS && !isRecordingIntro && transitionState === 0 && mouseX > 0 && mouseY > 0) {
             let mapW = canvas.width, mapH = canvas.height, stX = 0, stY = 0;
             if (backgroundImage) {
-               let iR = backgroundImage.width / backgroundImage.height;
-               let cR = canvas.width / canvas.height;
-               if (iR > cR) { mapW = canvas.width; mapH = canvas.width / iR; stY = (canvas.height - mapH)/2; }
-               else { mapH = canvas.height; mapW = canvas.height * iR; stX = (canvas.width - mapW)/2; }
+               let iR = backgroundImage.width / backgroundImage.height; let cR = canvas.width / canvas.height;
+               if (iR > cR) { mapW = canvas.width; mapH = canvas.width / iR; stY = (canvas.height - mapH)/2; } else { mapH = canvas.height; mapW = canvas.height * iR; stX = (canvas.width - mapW)/2; }
             }
             let cSize = mapW / (gridDivisions[Math.min(currentCellSizeIdx, gridDivisions.length - 1)] || 24);
+            let cCol = Math.floor((mouseX - stX) / cSize); let cRow = Math.floor((mouseY - stY) / cSize);
             
-            let cCol = Math.floor((mouseX - stX) / cSize);
-            let cRow = Math.floor((mouseY - stY) / cSize);
-            
-            // Only draw tracker if mouse is inside the actual map boundaries
             if (cCol >= 0 && cRow >= 0 && mouseX >= stX && mouseX <= stX + mapW && mouseY >= stY && mouseY <= stY + mapH) {
                 let gPrefix = document.getElementById('mgrsPrefix').value;
                 let mgrsStr = `${gPrefix} ${String(cCol).padStart(2,'0')} ${String(cRow).padStart(2,'0')}`.trim();
-                
-                ctx.save();
-                ctx.font = "bold 14px 'Courier New', Courier, monospace";
-                let tw = ctx.measureText(mgrsStr).width;
-                
-                // Draw floating HUD box next to mouse
+                ctx.save(); ctx.font = "bold 14px 'Courier New', Courier, monospace"; let tw = ctx.measureText(mgrsStr).width;
                 let boxX = mouseX + 15; let boxY = mouseY + 15;
-                // Keep it on screen
-                if (boxX + tw + 16 > canvas.width) boxX = mouseX - tw - 25;
-                if (boxY + 26 > canvas.height) boxY = mouseY - 35;
-                
-                ctx.fillStyle = "rgba(10, 12, 16, 0.9)";
-                ctx.strokeStyle = "#6DA4CF";
-                ctx.lineWidth = 1;
-                ctx.fillRect(boxX, boxY, tw + 16, 26);
-                ctx.strokeRect(boxX, boxY, tw + 16, 26);
-                
-                ctx.fillStyle = "#ffcc00";
-                ctx.textAlign = "left";
-                ctx.textBaseline = "middle";
-                ctx.fillText(mgrsStr, boxX + 8, boxY + 13);
-                ctx.restore();
+                if (boxX + tw + 16 > canvas.width) boxX = mouseX - tw - 25; if (boxY + 26 > canvas.height) boxY = mouseY - 35;
+                ctx.fillStyle = "rgba(10, 12, 16, 0.9)"; ctx.strokeStyle = "#6DA4CF"; ctx.lineWidth = 1; ctx.fillRect(boxX, boxY, tw + 16, 26); ctx.strokeRect(boxX, boxY, tw + 16, 26);
+                ctx.fillStyle = "#ffcc00"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(mgrsStr, boxX + 8, boxY + 13); ctx.restore();
             }
         }
 
-        // 8. HOVER HUD
         if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0 && !isRecordingIntro) {
             ctx.save(); 
             if (currentHoverTarget.imgData) {
@@ -1405,17 +914,12 @@
                     let tX = mouseX + 20; let tY = mouseY + 20;
                     if (tX + drawW > canvas.width) tX = mouseX - drawW - 20; if (tY + drawH > canvas.height) tY = mouseY - drawH - 20;
                     ctx.shadowColor = currentHoverTarget.color; ctx.shadowBlur = 20; ctx.fillStyle = "rgba(10, 16, 24, 0.95)"; ctx.strokeStyle = currentHoverTarget.color; ctx.lineWidth = 3;
-                    ctx.fillRect(tX, tY, drawW, drawH); ctx.strokeRect(tX, tY, drawW, drawH); ctx.shadowBlur = 0;
-                    ctx.drawImage(currentHoverTarget.imgObj, tX, tY, drawW, drawH);
-                    if (currentHoverTarget.description) {
-                        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(tX, tY + drawH - 30, drawW, 30); ctx.font = "bold 13px 'Courier New', Courier, monospace";
-                        ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(currentHoverTarget.description, tX + drawW/2, tY + drawH - 15);
-                    }
+                    ctx.fillRect(tX, tY, drawW, drawH); ctx.strokeRect(tX, tY, drawW, drawH); ctx.shadowBlur = 0; ctx.drawImage(currentHoverTarget.imgObj, tX, tY, drawW, drawH);
+                    if (currentHoverTarget.description) { ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(tX, tY + drawH - 30, drawW, 30); ctx.font = "bold 13px 'Courier New', Courier, monospace"; ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(currentHoverTarget.description, tX + drawW/2, tY + drawH - 15); }
                 }
             } 
             else if (currentHoverTarget.description && currentHoverTarget.description.trim() !== "") {
-                ctx.font = "bold 13px 'Courier New', Courier, monospace";
-                const pad = 12; const txtW = ctx.measureText(currentHoverTarget.description).width; const bW = txtW + pad * 2; const bH = 34;
+                ctx.font = "bold 13px 'Courier New', Courier, monospace"; const pad = 12; const txtW = ctx.measureText(currentHoverTarget.description).width; const bW = txtW + pad * 2; const bH = 34;
                 let tX = mouseX + 15; let tY = mouseY + 15;
                 if (tX + bW > canvas.width) tX = mouseX - bW - 10; if (tY + bH > canvas.height) tY = mouseY - bH - 10;
                 ctx.shadowColor = currentHoverTarget.color; ctx.shadowBlur = 15; ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.strokeStyle = currentHoverTarget.color; ctx.lineWidth = 2;
@@ -1425,17 +929,10 @@
             ctx.restore();
         }
 
-        // 9. AUTO-SAVE TOAST RENDERER
         if (saveMessageAlpha > 0) {
-            ctx.save();
-            ctx.globalAlpha = saveMessageAlpha;
-            ctx.fillStyle = '#00e64d';
-            ctx.font = "bold 14px 'Courier New', Courier, monospace";
-            ctx.textAlign = "right";
-            ctx.textBaseline = "top";
-            ctx.fillText("[ SYSTEM AUTO-SAVED ]", canvas.width - 20, 20); 
-            ctx.restore();
-            saveMessageAlpha -= 0.005; // Slow fade out
+            ctx.save(); ctx.globalAlpha = saveMessageAlpha; ctx.fillStyle = '#00e64d'; ctx.font = "bold 14px 'Courier New', Courier, monospace";
+            ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("[ SYSTEM AUTO-SAVED ]", canvas.width - 20, 20); ctx.restore();
+            saveMessageAlpha -= 0.005; 
         }
 
         drawTransitionOverlay();
