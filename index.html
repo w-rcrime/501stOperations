@@ -149,10 +149,10 @@
             <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
                 <input type="checkbox" id="mgrsCheck"> MGRS-Style
             </label>
-            <input type="text" id="mgrsPrefix" placeholder="MGRS Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF; font-family:inherit;">
+            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF; font-family:inherit;">
             <div class="separator" style="margin: 0 2px;"></div>
-            <span style="font-size:0.8em; color:#6DA4CF;">Cell Snap Size:</span>
-            <input type="range" id="cellSizeSlider" min="0" max="5" step="1" value="5" style="width: 100px;">
+            <span style="font-size:0.8em; color:#6DA4CF;">Snap Size:</span>
+            <input type="range" id="cellSizeSlider" min="0" max="7" step="1" value="4" style="width: 90px;" title="Scale Grid Density">
         </div>
         <div class="separator"></div>
         <div class="tool-group">
@@ -230,12 +230,12 @@
     let phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
     let currentPhaseIdx = 0;
     let mode = 'move'; let backgroundImage = null; let showGrid = false;
-    let gridLabelStyle = 'mgrs'; // Default to mgrs style grid
-    let gridPrefix = ""; // String for grid prefix text
+    let gridLabelStyle = 'std'; 
+    let gridPrefix = ""; 
     
-    // Grid settings perfectly mapped to divisions of 1920x1080
-    const gridSizes = [20, 24, 30, 40, 60, 120];
-    let currentCellSizeIdx = 5; 
+    // Grid divisions perfectly tailored to split the map cleanly
+    const gridDivisions = [8, 12, 16, 20, 24, 32, 40, 48];
+    let currentCellSizeIdx = 4; // Defaults to 24 divisions
 
     // Interaction & Tool State
     let isDragging = false; let dragTarget = null; 
@@ -262,7 +262,7 @@
     
     document.getElementById('cellSizeSlider').addEventListener('input', function(e) { 
         currentCellSizeIdx = parseInt(e.target.value); 
-        drawBaseMap(); // Force redraw of grid
+        drawBaseMap(); 
     });
 
     document.getElementById('mgrsCheck').addEventListener('change', function(e) { 
@@ -784,24 +784,45 @@
             context.lineTo(-size*0.2, -size*0.4); context.closePath();
         } 
         else if (shape === 'tank') {
-            context.rect(-size*1.2, size*0.2, size*2.4, size*0.4); // Treads
-            context.rect(-size*0.9, -size*0.2, size*1.8, size*0.5); // Hull
-            context.arc(-size*0.1, -size*0.2, size*0.45, 0, Math.PI*2); // Turret
-            context.rect(size*0.2, -size*0.35, size*1.3, size*0.15); // Barrel
+            // Saber Tank Profile
+            context.moveTo(-size*1.3, size*0.4);
+            context.lineTo(size*1.3, size*0.4);
+            context.lineTo(size*1.4, size*0.2);
+            context.lineTo(size*1.0, -size*0.1);
+            context.lineTo(size*0.2, -size*0.1);
+            context.lineTo(-size*0.2, -size*0.3);
+            context.lineTo(-size*0.9, -size*0.3);
+            context.lineTo(-size*1.2, -size*0.1);
+            context.closePath();
+            context.rect(size*0.2, -size*0.25, size*1.4, size*0.1); // Barrel
+            context.arc(-size*0.4, -size*0.3, size*0.25, Math.PI, 0); // Turret
+            context.rect(size*0.8, size*0.1, size*0.7, size*0.08); // Side Cannon
         }
         else if (shape === 'atte') {
-            [-size*0.8, 0, size*0.8].forEach(lx => {
-                context.moveTo(lx - size*0.15, size*0.4);
-                context.lineTo(lx - size*0.25, size*0.9);
-                context.lineTo(lx + size*0.25, size*0.9);
-                context.lineTo(lx + size*0.15, size*0.4);
+            // AT-TE Profile
+            context.moveTo(-size*1.1, size*0.1);
+            context.lineTo(-size*1.2, -size*0.2);
+            context.lineTo(-size*0.8, -size*0.6);
+            context.lineTo(size*0.2, -size*0.7);
+            context.lineTo(size*1.0, -size*0.3);
+            context.lineTo(size*1.3, 0);
+            context.lineTo(size*0.9, size*0.3);
+            context.lineTo(-size*0.9, size*0.3);
+            context.closePath();
+            // Legs
+            [-size*0.8, -size*0.1, size*0.6].forEach(x => {
+                context.moveTo(x, size*0.2); context.lineTo(x - size*0.2, size*0.8); context.lineTo(x + size*0.2, size*0.8); context.closePath();
+                context.arc(x, size*0.8, size*0.25, Math.PI, 0);
             });
-            context.save(); context.scale(1.2, 0.6); context.arc(0, 0, size, 0, Math.PI*2); context.restore(); // Body
-            context.rect(-size*0.3, -size*0.8, size*0.6, size*0.3); // Mount
-            context.rect(size*0.3, -size*0.75, size*1.0, size*0.1); // Cannon
+            // Mass Driver
+            context.arc(0, -size*0.7, size*0.2, 0, Math.PI*2);
+            context.rect(-size*0.2, -size*0.8, size*1.8, size*0.15);
+            // Front Cannons
+            context.rect(size*1.1, -size*0.1, size*0.5, size*0.06);
+            context.rect(size*1.2, size*0.05, size*0.5, size*0.06);
         }
         else if (shape === 'star') {
-            // Star handled in main render loop
+            // Star handled explicitly in unit render loop due to text scaling
         }
         else { context.arc(0, 0, size, 0, Math.PI*2); }
         context.restore();
@@ -825,24 +846,24 @@
     }
 
     function drawBaseMap() {
+        let startX = 0, startY = 0, mapW = canvas.width, mapH = canvas.height;
+
         if (backgroundImage) { 
             const imgRatio = backgroundImage.width / backgroundImage.height;
             const canvasRatio = canvas.width / canvas.height;
-            let drawW = canvas.width; let drawH = canvas.height;
-            let drawX = 0; let drawY = 0;
 
             if (imgRatio > canvasRatio) {
-                drawW = canvas.width;
-                drawH = canvas.width / imgRatio;
-                drawX = 0;
-                drawY = (canvas.height - drawH) / 2;
+                mapW = canvas.width;
+                mapH = canvas.width / imgRatio;
+                startX = 0;
+                startY = (canvas.height - mapH) / 2;
             } else {
-                drawH = canvas.height;
-                drawW = canvas.height * imgRatio;
-                drawX = (canvas.width - drawW) / 2;
-                drawY = 0;
+                mapH = canvas.height;
+                mapW = canvas.height * imgRatio;
+                startX = (canvas.width - mapW) / 2;
+                startY = 0;
             }
-            ctx.drawImage(backgroundImage, drawX, drawY, drawW, drawH);
+            ctx.drawImage(backgroundImage, startX, startY, mapW, mapH);
         } else {
             ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); 
             ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
@@ -852,52 +873,56 @@
         
         if (showGrid) {
             ctx.save();
-            const cSize = gridSizes[currentCellSizeIdx] || 120;
+            const cols = gridDivisions[Math.min(currentCellSizeIdx, gridDivisions.length - 1)] || 24;
+            const cSize = mapW / cols;
+            const rows = Math.floor(mapH / cSize);
+
             const uColor = document.getElementById('gridColorPicker').value;
             ctx.strokeStyle = hexToRgba(uColor, 0.4); ctx.lineWidth = 2; 
-
-            const cols = Math.floor(canvas.width / cSize); 
-            const rows = Math.floor(canvas.height / cSize);
             
-            // Draw grid lines
+            // Draw Grid Lines
             ctx.beginPath();
             for (let i = 0; i <= cols; i++) { 
-                ctx.moveTo(i * cSize, 0); ctx.lineTo(i * cSize, canvas.height); 
+                ctx.moveTo(startX + (i * cSize), startY); 
+                ctx.lineTo(startX + (i * cSize), startY + mapH); 
             }
             for (let j = 0; j <= rows; j++) { 
-                ctx.moveTo(0, j * cSize); ctx.lineTo(canvas.width, j * cSize); 
+                ctx.moveTo(startX, startY + (j * cSize)); 
+                ctx.lineTo(startX + mapW, startY + (j * cSize)); 
             }
             ctx.stroke();
 
-            // Draw clean axis bars
+            // Draw clean axis bars Over Grid
             ctx.fillStyle = 'rgba(8, 10, 13, 0.85)';
-            ctx.fillRect(0, 0, canvas.width, 24); // Top edge
-            ctx.fillRect(0, 0, 32, canvas.height); // Left edge
+            ctx.fillRect(startX, startY, mapW, 24); // Top edge
+            ctx.fillRect(startX, startY, 32, mapH); // Left edge
 
             // Text Setup
             ctx.fillStyle = hexToRgba(uColor, 0.9); 
-            ctx.font = "bold 14px 'Courier New', Courier, monospace"; 
             ctx.textAlign = "center"; 
             ctx.textBaseline = "middle";
 
-            // Letters on Top
             for (let i = 0; i < cols; i++) { 
-                ctx.fillText(getColLabel(i), (i * cSize) + (cSize / 2), 12); 
+                let labelX = (gridLabelStyle === 'mgrs') ? String(i + 1).padStart(2, '0') : getColLabel(i);
+                ctx.font = (gridLabelStyle === 'mgrs') ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
+                ctx.fillText(labelX, startX + (i * cSize) + (cSize / 2), startY + 12); 
             } 
-            // Numbers on Left
             for (let j = 0; j < rows; j++) { 
-                ctx.fillText(j + 1, 16, (j * cSize) + (cSize / 2)); 
+                let labelY = (gridLabelStyle === 'mgrs') ? String(j + 1).padStart(2, '0') : (j + 1);
+                ctx.font = (gridLabelStyle === 'mgrs') ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
+                ctx.fillText(labelY, startX + 16, startY + (j * cSize) + (cSize / 2)); 
             }
 
-            // Draw MGRS prefix corner if checked
+            // Draw Corner Block to cover intersecting text
+            let cornerW = (gridLabelStyle === 'mgrs' && gridPrefix.trim() !== "") ? Math.max(80, cSize) : 32;
+            ctx.fillStyle = 'rgba(10, 12, 16, 1)';
+            ctx.fillRect(startX, startY, cornerW, 24);
+
             if (gridLabelStyle === 'mgrs' && gridPrefix.trim() !== "") {
-                ctx.fillStyle = 'rgba(10, 12, 16, 1)';
-                ctx.fillRect(0, 0, 80, 24);
                 ctx.fillStyle = '#ffcc00';
                 ctx.font = "bold 12px 'Courier New', Courier, monospace";
-                ctx.fillText(gridPrefix, 40, 12);
+                ctx.fillText(gridPrefix, startX + cornerW / 2, startY + 12);
             }
-
             ctx.restore();
         }
     }
