@@ -102,6 +102,7 @@
         <button id="btnLine" onclick="setMode('line')">PATH</button>
         <button id="btnZone" onclick="setMode('zone')">ZONE</button>
         <button id="btnPing" onclick="setMode('ping')" style="color: #00e64d;">PING</button>
+        <button id="btnKia" onclick="setMode('kia')" style="color: #ff1a1a;">KIA</button>
         
         <div class="sys-group">
             <button id="btnGrid" onclick="toggleGrid()">GRID: OFF</button>
@@ -136,6 +137,8 @@
                 <option value="square">■ ARMORED</option>
                 <option value="star">★ SPECIALIST</option>
                 <option value="plane">✈ AIR SUPPORT</option>
+                <option value="tank">▤ TANK</option>
+                <option value="atte">◖ AT-TE</option>
             </select>
             <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;">
                 <input type="checkbox" id="boldCheck"> BOLD
@@ -161,13 +164,11 @@
             <button onclick="addUnit('enemy')" style="color: #ff1a1a;">OPFOR</button>
             <button onclick="addUnit('ally')" style="color: #00e64d;">ALLY</button>
             <button onclick="addUnit('objective')" style="color: #ffcc00;">TGT</button>
-            <div class="separator" style="margin: 0 2px;"></div>
-            <button onclick="addUnit('gar', 'tank')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">TANK</button>
-            <button onclick="addUnit('gar', 'atte')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">AT-TE</button>
         </div>
         <div class="separator"></div>
         <div class="tool-group">
             <button onclick="addText()">+ TEXT</button>
+            <button id="btnTime" onclick="setMode('time')" style="color: #00e64d;">+ TIME</button>
             <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
                 <input type="checkbox" id="boxTextCheck" checked> BOXED
             </label>
@@ -250,6 +251,7 @@
     let isSecureLocked = false; 
     let transitionState = 0; let transitionStartTime = null; let transitionAlpha = 0;
     let transOldIdx = 0; let transNewIdx = 0; let transitionText = ""; let transitionCallback = null;
+    let saveMessageAlpha = 0; // Controls the Auto-Save Toast visibility
     
     // Advanced Playback Controls
     let isPlaying = false; let isPaused = false; 
@@ -258,6 +260,61 @@
     const PLAY_DURATION = 4000;
     let activeAnimations = new Map(); 
 
+    // --- AUTO SAVE LOGIC ---
+    function triggerAutoSave() {
+        try {
+            const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridSizeIdx: currentCellSizeIdx, gridLabelStyle: gridLabelStyle, gridPrefix: gridPrefix };
+            let dataString = JSON.stringify(projectData);
+            
+            // Failsafe: LocalStorage has a 5MB limit. If base64 background image is too large, drop the image but save tactical data.
+            if (dataString.length > 4500000) {
+                projectData.bgImg = null;
+                projectData.phases.forEach(p => (p.cameras || []).forEach(c => c.imgData = null));
+                dataString = JSON.stringify(projectData);
+            }
+            
+            localStorage.setItem('501st_tactical_autosave', dataString);
+            saveMessageAlpha = 1.0; // Trigger the toast notification
+        } catch(e) {
+            console.warn("Auto-save failed. Storage quota exceeded.", e);
+        }
+    }
+    // Set to auto-save every 30 seconds
+    setInterval(triggerAutoSave, 30000); 
+
+    // Auto-Load on start
+    window.addEventListener('DOMContentLoaded', () => {
+        const saved = localStorage.getItem('501st_tactical_autosave');
+        if(saved) {
+            try {
+                loadProjectData(JSON.parse(saved));
+                console.log("Restored tactical data from auto-save.");
+            } catch(e) { console.warn("Failed to load auto-save."); }
+        }
+    });
+
+    function loadProjectData(data) {
+        if (data.opName) { operationName = data.opName; document.getElementById('opNameDisplay').innerText = operationName; }
+        if (data.phases) { phases = data.phases; } else { phases = [{ name: "PHASE 1", units: data.units || [], lines: data.lines || [], texts: data.texts || [], zones: data.zones || [], drawings: [], cameras: [] }]; }
+        phases.forEach(p => { if(!p.drawings) p.drawings = []; if(!p.cameras) p.cameras = []; });
+        currentPhaseIdx = 0; syncPhasePointers(); showGrid = data.showGrid || false;
+        if (data.gridColor) document.getElementById('gridColorPicker').value = data.gridColor;
+        if (data.gridSizeIdx !== undefined) { currentCellSizeIdx = data.gridSizeIdx; document.getElementById('cellSizeSlider').value = currentCellSizeIdx; }
+        if (data.gridLabelStyle) { gridLabelStyle = data.gridLabelStyle; document.getElementById('mgrsCheck').checked = (gridLabelStyle === 'mgrs'); }
+        if (data.gridPrefix) { gridPrefix = data.gridPrefix; document.getElementById('mgrsPrefix').value = gridPrefix; }
+
+        const btn = document.getElementById('btnGrid'); 
+        if (showGrid) { btn.innerText = 'GRID: ON'; btn.classList.add('active-mode'); } 
+        else { btn.innerText = 'GRID: OFF'; btn.classList.remove('active-mode'); }
+        
+        if (data.bgImg) { const img = new Image(); img.onload = () => { backgroundImage = img; }; img.src = data.bgImg; } 
+        else backgroundImage = null;
+        
+        if (isPlaying) stopPlayback();
+        runTransition("DATA LOADED", () => {});
+    }
+
+    // --- EVENT LISTENERS ---
     document.getElementById('colorSelect').addEventListener('change', function(e) { document.getElementById('customColorPicker').value = e.target.value; });
     
     document.getElementById('cellSizeSlider').addEventListener('input', function(e) { 
@@ -342,9 +399,9 @@
     }
 
     // --- PHASE & STATE CONTROL ---
-    function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } }
+    function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } triggerAutoSave(); }
     function syncPhasePointers() { document.getElementById('phaseDisplay').innerText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } }
+    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } triggerAutoSave(); }
     function resetInteractions() { dragTarget = null; currentPolygon = null; currentLine = null; currentMultiLine = null; currentZone = null; currentDrawing = null; isDragging = false; currentHoverTarget = null; }
 
     function triggerSmoothTransition(newIdx) { 
@@ -388,6 +445,7 @@
             cameras: JSON.parse(JSON.stringify(current.cameras || [])) 
         });
         triggerSmoothTransition(phases.length - 1);
+        triggerAutoSave();
     }
 
     function nextPhase() { 
@@ -418,6 +476,8 @@
             const phase = phases[currentPhaseIdx];
             
             (phase.units || []).forEach(u => {
+                if(u.isKIA) return; // Dead units don't animate
+
                 let targetLine = null;
                 for (let l of (phase.lines || [])) {
                     let pts = l.shape === 'multi' ? l.points : [{x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}];
@@ -477,12 +537,22 @@
     }
 
     // --- SYSTEM I/O ---
+    document.getElementById('dataInput').addEventListener('change', (e) => {
+        if (transitionState > 0 || isRecordingIntro) return; 
+        const file = e.target.files[0]; if (!file) return; 
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try { loadProjectData(JSON.parse(event.target.result)); } catch (err) { alert("SYS ERROR: Project file is corrupted."); }
+        }; reader.readAsText(file); e.target.value = ''; 
+    });
+
     document.getElementById('cameraInput').addEventListener('change', e => {
         const file = e.target.files[0]; if (!file) return; 
         const reader = new FileReader();
         reader.onload = event => { 
             if(!phases[currentPhaseIdx].cameras) phases[currentPhaseIdx].cameras = []; 
             phases[currentPhaseIdx].cameras.push({ x: pendingCamX, y: pendingCamY, color: getModifiers().color, imgData: event.target.result, description: "GROUND VIEW" }); 
+            triggerAutoSave();
         };
         reader.readAsDataURL(file); e.target.value = ''; 
     });
@@ -493,39 +563,10 @@
         const reader = new FileReader();
         reader.onload = (event) => { 
             const img = new Image(); 
-            img.onload = () => { backgroundImage = img; }; 
+            img.onload = () => { backgroundImage = img; triggerAutoSave(); }; 
             img.src = event.target.result; 
         }; 
         reader.readAsDataURL(file); e.target.value = ''; 
-    });
-
-    document.getElementById('dataInput').addEventListener('change', (e) => {
-        if (transitionState > 0 || isRecordingIntro) return; 
-        const file = e.target.files[0]; if (!file) return; 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
-                if (data.opName) { operationName = data.opName; document.getElementById('opNameDisplay').innerText = operationName; }
-                if (data.phases) { phases = data.phases; } else { phases = [{ name: "PHASE 1", units: data.units || [], lines: data.lines || [], texts: data.texts || [], zones: data.zones || [], drawings: [], cameras: [] }]; }
-                phases.forEach(p => { if(!p.drawings) p.drawings = []; if(!p.cameras) p.cameras = []; });
-                currentPhaseIdx = 0; syncPhasePointers(); showGrid = data.showGrid || false;
-                if (data.gridColor) document.getElementById('gridColorPicker').value = data.gridColor;
-                if (data.gridSizeIdx !== undefined) { currentCellSizeIdx = data.gridSizeIdx; document.getElementById('cellSizeSlider').value = currentCellSizeIdx; }
-                if (data.gridLabelStyle) { document.getElementById('mgrsCheck').checked = (data.gridLabelStyle === 'mgrs'); }
-                if (data.gridPrefix) { document.getElementById('mgrsPrefix').value = data.gridPrefix; }
-
-                const btn = document.getElementById('btnGrid'); 
-                if (showGrid) { btn.innerText = 'GRID: ON'; btn.classList.add('active-mode'); } 
-                else { btn.innerText = 'GRID: OFF'; btn.classList.remove('active-mode'); }
-                
-                if (data.bgImg) { const img = new Image(); img.onload = () => { backgroundImage = img; }; img.src = data.bgImg; } 
-                else backgroundImage = null;
-                
-                if (isPlaying) stopPlayback();
-                runTransition("DATA LOADED", () => {});
-            } catch (err) { alert("SYS ERROR: Project file is corrupted."); }
-        }; reader.readAsText(file); e.target.value = ''; 
     });
 
     function exportImage() {
@@ -555,6 +596,7 @@
         if(confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
             phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
             currentPhaseIdx = 0; syncPhasePointers(); backgroundImage = null; resetInteractions(); 
+            localStorage.removeItem('501st_tactical_autosave'); // Clear autosave cache too
             if(isPlaying) stopPlayback(); 
         } 
     }
@@ -603,7 +645,7 @@
         const zoneTools = document.getElementById('zoneTools'); 
         const lineTools = document.getElementById('lineTools');
         
-        ['btnMove', 'btnResize', 'btnRecolor', 'btnEditText', 'btnDraw', 'btnLine', 'btnZone', 'btnPing', 'btnCamera'].forEach(id => { 
+        ['btnMove', 'btnResize', 'btnRecolor', 'btnEditText', 'btnDraw', 'btnLine', 'btnZone', 'btnPing', 'btnCamera', 'btnKia', 'btnTime'].forEach(id => { 
             const el = document.getElementById(id); if (el) el.classList.remove('active-mode'); 
         });
         
@@ -618,7 +660,9 @@
             'line': {c: '#ff1a1a', t: 'OP-MODE: TACTICAL PATH<br>> SINGLE: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK LAST POINT TO FINISH<br>> RIGHT-CLICK TO ADD INTEL'},
             'zone': {c: '#00e64d', t: 'OP-MODE: SECURE ZONE<br>> CIRCLE/RECT: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK ORIGIN TO CLOSE'},
             'ping': {c: '#00e64d', t: 'OP-MODE: PING<br>> CLICK TO SEND A TEMPORARY RADAR PING TO YOUR SQUAD'},
-            'camera': {c: '#ffcc00', t: 'OP-MODE: CAMERA VIEW<br>> CLICK ON THE MAP TO PLACE A GROUND CAMERA<br>> YOU WILL BE PROMPTED TO UPLOAD A REFERENCE IMAGE'}
+            'camera': {c: '#ffcc00', t: 'OP-MODE: CAMERA VIEW<br>> CLICK ON THE MAP TO PLACE A GROUND CAMERA<br>> YOU WILL BE PROMPTED TO UPLOAD A REFERENCE IMAGE'},
+            'kia': {c: '#ff1a1a', t: 'OP-MODE: CASUALTY / KIA MARKER<br>> CLICK ANY UNIT TO MARK AS DESTROYED OR KIA'},
+            'time': {c: '#00e64d', t: 'OP-MODE: TIMESTAMPS<br>> CLICK ANYWHERE NEAR A NODE TO DROP A TACTICAL TIMESTEP LABEL'}
         };
 
         if (modeData[mode]) {
@@ -642,14 +686,14 @@
         const mods = getModifiers(); 
         const finalShape = forcedShape ? forcedShape : mods.shape;
 
-        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: finalShape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "" });
+        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: finalShape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "", isKIA: false });
         setMode('move');
     }
     
     function addText() {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const txt = prompt("INPUT TACTICAL DESIGNATION:"); const mods = getModifiers();
-        if (txt && txt.trim() !== "") { phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, scale: 1.0, bold: mods.bold, description: "" }); setMode('move'); }
+        if (txt && txt.trim() !== "") { phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, isTimestamp: false, scale: 1.0, bold: mods.bold, description: "" }); setMode('move'); }
     }
 
     // --- MOUSE EVENTS ---
@@ -676,6 +720,11 @@
             if (currentHoverTarget) currentHoverTarget.color = document.getElementById('customColorPicker').value;
         } else if (mode === 'edittext') {
             if (currentHoverTarget && currentHoverTarget.text !== undefined) { const newText = prompt("UPDATE TACTICAL DESIGNATION:", currentHoverTarget.text); if (newText !== null && newText.trim() !== "") currentHoverTarget.text = newText.trim().toUpperCase(); }
+        } else if (mode === 'kia') {
+            if (currentHoverTarget && currentHoverTarget.type !== undefined) { currentHoverTarget.isKIA = !currentHoverTarget.isKIA; }
+        } else if (mode === 'time') {
+            const timeVal = prompt("ENTER WAYPOINT TIMESTAMP (e.g., T+0:15):", "T+");
+            if (timeVal && timeVal.trim() !== "") { const mods = getModifiers(); phases[currentPhaseIdx].texts.push({ text: timeVal.toUpperCase(), x: mouseX, y: mouseY, color: mods.color, boxed: true, isTimestamp: true, scale: 1.0, bold: true, description: "" }); setMode('move'); }
         } else if (mode === 'line') {
             const lShape = document.getElementById('lineShape').value; const mods = getModifiers();
             const isInv = document.getElementById('pathInvisibleCheck').checked;
@@ -770,6 +819,7 @@
             currentZone = null;
         }
         isDragging = false; dragTarget = null; currentHoverTarget = getHoveredObject(mouseX, mouseY);
+        if(mode !== 'move' && mode !== 'resize') triggerAutoSave(); // Save after drawing actions
     });
 
     // --- CANVAS RENDERERS ---
@@ -1000,6 +1050,8 @@
             context.translate(cx, cy);
             context.rotate(rot);
 
+            if (u.isKIA) { context.globalAlpha = 0.35; } // Ghosted KIA rendering
+
             const isSpecialist = u.shape === 'star';
 
             if (isSpecialist) {
@@ -1021,6 +1073,18 @@
                 context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
             }
 
+            // Draw Red Tactical X over KIA units
+            if (u.isKIA) {
+                context.globalAlpha = 1.0;
+                context.strokeStyle = '#ff1a1a';
+                context.lineWidth = 5 * uScale;
+                context.beginPath();
+                let xSize = currentSize * 1.2;
+                context.moveTo(-xSize, -xSize); context.lineTo(xSize, xSize);
+                context.moveTo(xSize, -xSize); context.lineTo(-xSize, xSize);
+                context.stroke();
+            }
+
             if (dragTarget === u && !isPlaying && !isRecordingIntro) { 
                 context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); 
                 let bbSize = isSpecialist ? currentSize*1.4 : currentSize*1.3;
@@ -1034,8 +1098,29 @@
             const tScale = t.scale || 1.0;
             context.save(); const fontSize = Math.floor(16 * tScale); ctx.font = `${t.bold ? "bold" : "normal"} ${fontSize}px 'Courier New', Courier, monospace`;
             const w = context.measureText(t.text).width; const boxPad = 8 * tScale; const boxH = fontSize * 1.5; context.translate(t.x, t.y);
-            if (t.boxed) { ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * tScale; ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); }
-            context.fillStyle = t.color; context.textAlign = "center"; context.fillText(t.text, 0, 0);
+            
+            if (t.isTimestamp) {
+                // Waypoint Timestamp Rendering
+                ctx.fillStyle = "rgba(16, 20, 24, 0.95)"; 
+                ctx.strokeStyle = t.color; 
+                ctx.lineWidth = 2 * tScale; 
+                ctx.setLineDash([4, 2]); // Tactical dashed look
+                ctx.beginPath(); ctx.rect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH);
+                ctx.fill(); ctx.stroke();
+                ctx.setLineDash([]);
+                context.fillStyle = t.color;
+            } else if (t.boxed) {
+                // Standard Boxed Text
+                ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * tScale; 
+                ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); 
+                ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); 
+                context.fillStyle = t.color;
+            } else {
+                context.fillStyle = t.color;
+            }
+
+            context.textAlign = "center"; context.fillText(t.text, 0, 0);
+
             if (dragTarget === t && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
             context.restore();
         });
@@ -1301,6 +1386,20 @@
                 ctx.fillText(currentHoverTarget.description, tX + pad, tY + bH/2);
             }
             ctx.restore();
+        }
+
+        // 9. AUTO-SAVE TOAST RENDERER
+        if (saveMessageAlpha > 0) {
+            ctx.save();
+            ctx.globalAlpha = saveMessageAlpha;
+            ctx.fillStyle = '#00e64d';
+            ctx.font = "bold 14px 'Courier New', Courier, monospace";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            // Positioned at the top right, clear of the legend box
+            ctx.fillText("[ SYSTEM AUTO-SAVED ]", canvas.width - 20, 20); 
+            ctx.restore();
+            saveMessageAlpha -= 0.005; // Slow fade out
         }
 
         drawTransitionOverlay();
