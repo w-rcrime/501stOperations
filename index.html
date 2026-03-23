@@ -151,8 +151,8 @@
             </label>
             <input type="text" id="mgrsPrefix" placeholder="MGRS Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF; font-family:inherit;">
             <div class="separator" style="margin: 0 2px;"></div>
-            <span style="font-size:0.8em; color:#6DA4CF;">Grid Cell Size:</span>
-            <input type="range" id="cellSizeSlider" min="40" max="400" value="120" style="width: 150px;">
+            <span style="font-size:0.8em; color:#6DA4CF;">Cell Snap Size:</span>
+            <input type="range" id="cellSizeSlider" min="0" max="5" step="1" value="5" style="width: 100px;">
         </div>
         <div class="separator"></div>
         <div class="tool-group">
@@ -162,8 +162,8 @@
             <button onclick="addUnit('ally')" style="color: #00e64d;">ALLY</button>
             <button onclick="addUnit('objective')" style="color: #ffcc00;">TGT</button>
             <div class="separator" style="margin: 0 2px;"></div>
-            <button onclick="addImageUnit('tank')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">TANK</button>
-            <button onclick="addImageUnit('atte')" style="color: #ff1a1a; font-size: 0.9em; background:#7d3434;">AT-TE</button>
+            <button onclick="addUnit('501st', 'tank')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">TANK</button>
+            <button onclick="addUnit('501st', 'atte')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">AT-TE</button>
         </div>
         <div class="separator"></div>
         <div class="tool-group">
@@ -232,16 +232,10 @@
     let mode = 'move'; let backgroundImage = null; let showGrid = false;
     let gridLabelStyle = 'mgrs'; // Default to mgrs style grid
     let gridPrefix = ""; // String for grid prefix text
-    let cellSize = 120; // Default cell size in px
-
-    // --- PRE-LOADED IMAGES (Base64 Strings) ---
-    // Pasted from image_6.png (Tank)
-    const tank_b64 = "PASTE_BASE64_FROM_image_6.png_HERE";
-    // Pasted from image_7.png (AT-TE)
-    const atte_b64 = "PASTE_BASE64_FROM_image_7.png_HERE";
-
-    let at_te_image = new Image(); at_te_image.src = atte_b64;
-    let tank_image = new Image(); tank_image.src = tank_b64;
+    
+    // Grid settings perfectly mapped to divisions of 1920x1080
+    const gridSizes = [20, 24, 30, 40, 60, 120];
+    let currentCellSizeIdx = 5; 
 
     // Interaction & Tool State
     let isDragging = false; let dragTarget = null; 
@@ -252,6 +246,7 @@
 
     // Media & Playback State
     let mediaRecorder = null; let recordedChunks = []; let isRecording = false;
+    let isRecordingIntro = false; let recIntroStartTime = null; 
     let isSecureLocked = false; 
     let transitionState = 0; let transitionStartTime = null; let transitionAlpha = 0;
     let transOldIdx = 0; let transNewIdx = 0; let transitionText = ""; let transitionCallback = null;
@@ -259,25 +254,25 @@
     // Advanced Playback Controls
     let isPlaying = false; let isPaused = false; 
     let playStartTime = 0; let pauseStartTime = 0; let totalPausedTime = 0;
+    let playFinishedTime = null; 
     const PLAY_DURATION = 4000;
     let activeAnimations = new Map(); 
 
     document.getElementById('colorSelect').addEventListener('change', function(e) { document.getElementById('customColorPicker').value = e.target.value; });
     
-    // Add event listeners for new Grid Options
     document.getElementById('cellSizeSlider').addEventListener('input', function(e) { 
-        cellSize = parseInt(e.target.value); 
-        drawBaseMap(); // Redraw grid immediately
+        currentCellSizeIdx = parseInt(e.target.value); 
+        drawBaseMap(); // Force redraw of grid
     });
 
     document.getElementById('mgrsCheck').addEventListener('change', function(e) { 
         gridLabelStyle = e.target.checked ? 'mgrs' : 'std';
-        drawBaseMap(); // Redraw grid labels immediately
+        drawBaseMap(); 
     });
 
     document.getElementById('mgrsPrefix').addEventListener('input', function(e) { 
         gridPrefix = e.target.value;
-        drawBaseMap(); // Redraw grid labels immediately
+        drawBaseMap(); 
     });
 
     // --- MATH & CACHING OPTIMIZATIONS ---
@@ -347,27 +342,27 @@
     }
 
     // --- PHASE & STATE CONTROL ---
-    function renameOp() { if (transitionState > 0 || isPlaying) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } }
+    function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } }
     function syncPhasePointers() { document.getElementById('phaseDisplay').innerText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-    function renamePhase() { if (transitionState > 0 || isPlaying) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } }
+    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } }
     function resetInteractions() { dragTarget = null; currentPolygon = null; currentLine = null; currentMultiLine = null; currentZone = null; currentDrawing = null; isDragging = false; currentHoverTarget = null; }
 
     function triggerSmoothTransition(newIdx) { 
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         if (isPlaying) stopPlayback(); 
         transOldIdx = currentPhaseIdx; transNewIdx = newIdx; transitionText = phases[newIdx].name || `PHASE ${newIdx + 1}`; 
         transitionState = 1; transitionStartTime = null; resetInteractions(); 
     }
     
     function runTransition(phaseText, callback) { 
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         if (isPlaying) stopPlayback();
         transitionText = phaseText; transitionCallback = callback; transitionState = 3; 
         transitionStartTime = null; resetInteractions(); 
     }
     
     function addPhase() {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         const current = phases[currentPhaseIdx];
         
         let newUnits = JSON.parse(JSON.stringify(current.units || []));
@@ -396,15 +391,15 @@
     }
 
     function nextPhase() { 
-        if (transitionState === 0 && !isPlaying && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); 
+        if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); 
     }
     
     function prevPhase() { 
-        if (transitionState === 0 && !isPlaying && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); 
+        if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx > 0) triggerSmoothTransition(currentPhaseIdx - 1); 
     }
 
     window.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'l' && transitionState === 0) {
+        if (e.key.toLowerCase() === 'l' && transitionState === 0 && !isRecordingIntro) {
             isSecureLocked = !isSecureLocked; 
             document.getElementById('legendBox').style.display = isSecureLocked ? 'none' : 'block'; 
             document.getElementById('credits-box').style.display = isSecureLocked ? 'none' : 'block'; 
@@ -414,7 +409,7 @@
 
     // --- ANIMATION CONTROLS ---
     function togglePlayback() {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const btnPlay = document.getElementById('btnPlay');
         const btnStop = document.getElementById('btnStop');
         
@@ -446,6 +441,7 @@
             isPaused = false;
             totalPausedTime = 0;
             playStartTime = performance.now();
+            playFinishedTime = null;
             
             btnPlay.style.color = '#ffcc00'; 
             btnPlay.innerText = '|| PAUSE';
@@ -469,6 +465,7 @@
     function stopPlayback() {
         isPlaying = false; 
         isPaused = false;
+        playFinishedTime = null;
         activeAnimations.clear();
         
         const btnPlay = document.getElementById('btnPlay');
@@ -491,7 +488,7 @@
     });
 
     document.getElementById('bgInput').addEventListener('change', (e) => {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         const file = e.target.files[0]; if (!file) return; 
         const reader = new FileReader();
         reader.onload = (event) => { 
@@ -503,7 +500,7 @@
     });
 
     document.getElementById('dataInput').addEventListener('change', (e) => {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         const file = e.target.files[0]; if (!file) return; 
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -514,7 +511,7 @@
                 phases.forEach(p => { if(!p.drawings) p.drawings = []; if(!p.cameras) p.cameras = []; });
                 currentPhaseIdx = 0; syncPhasePointers(); showGrid = data.showGrid || false;
                 if (data.gridColor) document.getElementById('gridColorPicker').value = data.gridColor;
-                if (data.gridCellSize) { cellSize = data.gridCellSize; document.getElementById('cellSizeSlider').value = cellSize; }
+                if (data.gridSizeIdx !== undefined) { currentCellSizeIdx = data.gridSizeIdx; document.getElementById('cellSizeSlider').value = currentCellSizeIdx; }
                 if (data.gridLabelStyle) { gridLabelStyle = data.gridLabelStyle; document.getElementById('mgrsCheck').checked = (gridLabelStyle === 'mgrs'); }
                 if (data.gridPrefix) { gridPrefix = data.gridPrefix; document.getElementById('mgrsPrefix').value = gridPrefix; }
 
@@ -532,7 +529,7 @@
     });
 
     function exportImage() {
-        if (isSecureLocked || transitionState > 0) return; resetInteractions();
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return; resetInteractions();
         setTimeout(() => { 
             try { 
                 let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); 
@@ -543,8 +540,8 @@
     }
     
     function exportData() {
-        if (transitionState > 0) return;
-        const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridCellSize: cellSize, gridLabelStyle: gridLabelStyle, gridPrefix: gridPrefix };
+        if (transitionState > 0 || isRecordingIntro) return;
+        const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridSizeIdx: currentCellSizeIdx, gridLabelStyle: gridLabelStyle, gridPrefix: gridPrefix };
         const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); 
         const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); 
         let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -552,7 +549,7 @@
     }
     
     function clearCanvas() { 
-        if(transitionState > 0) return; 
+        if(transitionState > 0 || isRecordingIntro) return; 
         if(confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
             phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
             currentPhaseIdx = 0; syncPhasePointers(); backgroundImage = null; resetInteractions(); 
@@ -566,6 +563,8 @@
         
         if (!isRecording) {
             resetInteractions();
+            isRecordingIntro = true; 
+            recIntroStartTime = null;
             const stream = canvas.captureStream(30); 
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
             
@@ -581,22 +580,21 @@
             mediaRecorder.start(); isRecording = true; 
             btnRecord.classList.add('recording-active'); btnRecord.innerText = '[ STOP REC ]';
         } else { 
-            mediaRecorder.stop(); isRecording = false; 
+            mediaRecorder.stop(); isRecording = false; isRecordingIntro = false;
             btnRecord.classList.remove('recording-active'); btnRecord.innerText = '[ REC ANIM ]'; 
         }
     }
 
     // --- UI TOOLS ---
     function toggleGrid() {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         showGrid = !showGrid; const btn = document.getElementById('btnGrid'); 
         btn.innerText = showGrid ? 'GRID: ON' : 'GRID: OFF'; 
         if (showGrid) btn.classList.add('active-mode'); else btn.classList.remove('active-mode');
-        drawBaseMap(); // Force immediate redraw to reflect change
     }
 
     function setMode(newMode) {
-        if (transitionState > 0) return; 
+        if (transitionState > 0 || isRecordingIntro) return; 
         mode = newMode; currentPolygon = null; currentMultiLine = null;
         
         const hintBox = document.getElementById('hintBox'); 
@@ -631,8 +629,8 @@
         if (mode === 'line') lineTools.style.display = 'inline-flex';
     }
 
-    function addUnit(type) {
-        if (isSecureLocked || transitionState > 0) return;
+    function addUnit(type, forcedShape = null) {
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         let color = '#ffffff'; 
         if (type === '501st') color = '#0066ff'; 
         if (type === 'enemy') color = '#ff1a1a'; 
@@ -640,38 +638,21 @@
         if (type === 'objective') color = '#ffcc00';
         
         const mods = getModifiers(); 
-        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: mods.shape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "" });
-        setMode('move');
-    }
+        const finalShape = forcedShape ? forcedShape : mods.shape;
 
-    function addImageUnit(imageType) {
-        if (isSecureLocked || transitionState > 0) return;
-        const mods = getModifiers();
-        let unitColor = mods.color; // color is still used for text
-        let customShape = imageType === 'tank' ? 'tank_image' : 'at_te_image';
-        
-        phases[currentPhaseIdx].units.push({ 
-            type: 'image_unit',
-            customShape: customShape, // Stores the pre-loaded image ID
-            color: unitColor, 
-            x: canvas.width/2 + (Math.random()*60-30), 
-            y: canvas.height/2 + (Math.random()*60-30), 
-            scale: 1.0, 
-            description: "",
-            angle: 0
-        });
+        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: finalShape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "" });
         setMode('move');
     }
     
     function addText() {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const txt = prompt("INPUT TACTICAL DESIGNATION:"); const mods = getModifiers();
         if (txt && txt.trim() !== "") { phases[currentPhaseIdx].texts.push({ text: txt.toUpperCase(), x: canvas.width/2, y: canvas.height/2, color: mods.color, boxed: document.getElementById('boxTextCheck').checked, scale: 1.0, bold: mods.bold, description: "" }); setMode('move'); }
     }
 
     // --- MOUSE EVENTS ---
     canvas.addEventListener('contextmenu', e => {
-        e.preventDefault(); if (isSecureLocked || transitionState > 0) return;
+        e.preventDefault(); if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         if (currentPolygon) { currentPolygon = null; return; }
         if (currentMultiLine) { currentMultiLine = null; return; }
         if (currentDrawing) { currentDrawing = null; isDragging = false; return; }
@@ -683,7 +664,7 @@
     });
 
     canvas.addEventListener('mousedown', e => {
-        if (e.button !== 0 || isSecureLocked || transitionState > 0) return; 
+        if (e.button !== 0 || isSecureLocked || transitionState > 0 || isRecordingIntro) return; 
         const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
         
         if (mode === 'move' || mode === 'resize') {
@@ -728,7 +709,7 @@
     });
 
     canvas.addEventListener('dblclick', e => {
-        if (mode !== 'move' || isSecureLocked || transitionState > 0) return;
+        if (mode !== 'move' || isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         if (currentHoverTarget) {
             const phase = phases[currentPhaseIdx];
             if (phase.texts && phase.texts.includes(currentHoverTarget)) phase.texts.splice(phase.texts.indexOf(currentHoverTarget), 1);
@@ -742,7 +723,7 @@
     });
 
     window.addEventListener('mousemove', e => {
-        if (isSecureLocked || transitionState > 0) return;
+        if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         const pos = getMousePos(e); mouseX = pos.x; mouseY = pos.y;
 
         if (!isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping') currentHoverTarget = getHoveredObject(mouseX, mouseY);
@@ -773,7 +754,7 @@
     });
 
     window.addEventListener('mouseup', (e) => {
-        if (e.button !== 0 || isSecureLocked || transitionState > 0) return; 
+        if (e.button !== 0 || isSecureLocked || transitionState > 0 || isRecordingIntro) return; 
         const phase = phases[currentPhaseIdx]; if(!phase.drawings) phase.drawings = [];
         
         if (mode === 'line' && currentLine) {
@@ -790,7 +771,7 @@
     });
 
     // --- CANVAS RENDERERS ---
-    function drawShape(context, shape, cx, cy, size, angle = 0, isSpecialist = false) {
+    function drawShape(context, shape, cx, cy, size, angle = 0) {
         context.save(); context.translate(cx, cy); context.rotate(angle); context.beginPath();
         if (shape === 'square') { context.rect(-size, -size, size*2, size*2); } 
         else if (shape === 'triangle') { context.moveTo(0, -size*1.2); context.lineTo(size*1.1, size*0.9); context.lineTo(-size*1.1, size*0.9); context.closePath(); } 
@@ -802,8 +783,25 @@
             context.lineTo(-size*0.25, size*0.5); context.lineTo(-size*1.2, size*0.3); context.lineTo(-size*1.2, 0); 
             context.lineTo(-size*0.2, -size*0.4); context.closePath();
         } 
-        else if (isSpecialist) {
-            // Specialist icon is drawn separately below as text
+        else if (shape === 'tank') {
+            context.rect(-size*1.2, size*0.2, size*2.4, size*0.4); // Treads
+            context.rect(-size*0.9, -size*0.2, size*1.8, size*0.5); // Hull
+            context.arc(-size*0.1, -size*0.2, size*0.45, 0, Math.PI*2); // Turret
+            context.rect(size*0.2, -size*0.35, size*1.3, size*0.15); // Barrel
+        }
+        else if (shape === 'atte') {
+            [-size*0.8, 0, size*0.8].forEach(lx => {
+                context.moveTo(lx - size*0.15, size*0.4);
+                context.lineTo(lx - size*0.25, size*0.9);
+                context.lineTo(lx + size*0.25, size*0.9);
+                context.lineTo(lx + size*0.15, size*0.4);
+            });
+            context.save(); context.scale(1.2, 0.6); context.arc(0, 0, size, 0, Math.PI*2); context.restore(); // Body
+            context.rect(-size*0.3, -size*0.8, size*0.6, size*0.3); // Mount
+            context.rect(size*0.3, -size*0.75, size*1.0, size*0.1); // Cannon
+        }
+        else if (shape === 'star') {
+            // Star handled in main render loop
         }
         else { context.arc(0, 0, size, 0, Math.PI*2); }
         context.restore();
@@ -851,33 +849,55 @@
             for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
             for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
         }
+        
         if (showGrid) {
             ctx.save();
+            const cSize = gridSizes[currentCellSizeIdx] || 120;
             const uColor = document.getElementById('gridColorPicker').value;
             ctx.strokeStyle = hexToRgba(uColor, 0.4); ctx.lineWidth = 2; 
-            ctx.fillStyle = hexToRgba(uColor, 0.7); ctx.textBaseline = "top";
 
-            const cols = Math.ceil(canvas.width / cellSize); const rows = Math.ceil(canvas.height / cellSize);
-            for (let i = 0; i < cols; i++) { 
-                for (let j = 0; j < rows; j++) { 
-                    const x = i * cellSize; const y = j * cellSize; 
-                    ctx.strokeRect(x, y, cellSize, cellSize); 
-                    
-                    let labelText;
-                    if (gridLabelStyle === 'mgrs') {
-                        // Use user defined prefix + coordinates relative to cell center
-                        ctx.font = "bold 13px 'Courier New', Courier, monospace";
-                        labelText = `${gridPrefix} ${i} ${j}`.trim();
-                        // Draw with small padding, slightly smaller font
-                        ctx.fillText(labelText, x + 4, y + 4);
-                    } else {
-                        // Standard alphanumeric grid labels
-                        ctx.font = "bold 16px 'Courier New', Courier, monospace";
-                        labelText = `${getColLabel(i)}${j + 1}`;
-                        ctx.fillText(labelText, x + 6, y + 6); 
-                    }
-                } 
+            const cols = Math.floor(canvas.width / cSize); 
+            const rows = Math.floor(canvas.height / cSize);
+            
+            // Draw grid lines
+            ctx.beginPath();
+            for (let i = 0; i <= cols; i++) { 
+                ctx.moveTo(i * cSize, 0); ctx.lineTo(i * cSize, canvas.height); 
             }
+            for (let j = 0; j <= rows; j++) { 
+                ctx.moveTo(0, j * cSize); ctx.lineTo(canvas.width, j * cSize); 
+            }
+            ctx.stroke();
+
+            // Draw clean axis bars
+            ctx.fillStyle = 'rgba(8, 10, 13, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, 24); // Top edge
+            ctx.fillRect(0, 0, 32, canvas.height); // Left edge
+
+            // Text Setup
+            ctx.fillStyle = hexToRgba(uColor, 0.9); 
+            ctx.font = "bold 14px 'Courier New', Courier, monospace"; 
+            ctx.textAlign = "center"; 
+            ctx.textBaseline = "middle";
+
+            // Letters on Top
+            for (let i = 0; i < cols; i++) { 
+                ctx.fillText(getColLabel(i), (i * cSize) + (cSize / 2), 12); 
+            } 
+            // Numbers on Left
+            for (let j = 0; j < rows; j++) { 
+                ctx.fillText(j + 1, 16, (j * cSize) + (cSize / 2)); 
+            }
+
+            // Draw MGRS prefix corner if checked
+            if (gridLabelStyle === 'mgrs' && gridPrefix.trim() !== "") {
+                ctx.fillStyle = 'rgba(10, 12, 16, 1)';
+                ctx.fillRect(0, 0, 80, 24);
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = "bold 12px 'Courier New', Courier, monospace";
+                ctx.fillText(gridPrefix, 40, 12);
+            }
+
             ctx.restore();
         }
     }
@@ -913,13 +933,13 @@
                 for (let i = 1; i < z.points.length; i++) context.lineTo(z.x + z.points[i].x * zScale, z.y + z.points[i].y * zScale); context.closePath();
             }
             context.strokeStyle = z.color; context.lineWidth = (z.bold ? 4 : 2) * zScale; context.stroke();
-            if (dragTarget === z && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
+            if (dragTarget === z && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
         (phaseData.lines || []).forEach(l => {
             const lScale = l.scale || 1.0;
             if (isPlaying && l.invisible) return; // Stealth Hide
-            if (dragTarget === l && !isPlaying) {
+            if (dragTarget === l && !isPlaying && !isRecordingIntro) {
                 context.save(); context.strokeStyle = '#ffffff'; context.globalAlpha = 0.5; context.lineWidth = 12 * lScale;
                 context.beginPath(); 
                 if (l.shape === 'multi') { context.moveTo(l.points[0].x, l.points[0].y); for(let i=1; i<l.points.length; i++) context.lineTo(l.points[i].x, l.points[i].y); } 
@@ -936,7 +956,7 @@
             context.beginPath(); context.moveTo(d.points[0].x, d.points[0].y);
             for(let i=1; i<d.points.length; i++) context.lineTo(d.points[i].x, d.points[i].y);
             context.strokeStyle = d.color; context.lineWidth = d.bold ? 4 : 2; context.lineJoin = 'round'; context.lineCap = 'round'; context.stroke();
-            if (dragTarget === d && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
+            if (dragTarget === d && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
         (phaseData.cameras || []).forEach(c => {
@@ -945,7 +965,7 @@
             context.beginPath(); context.moveTo(-12, -6); context.lineTo(-6, -12); context.lineTo(6, -12); context.lineTo(12, -6); context.lineTo(12, 10); context.lineTo(-12, 10); context.closePath(); context.fill(); context.stroke();
             context.fillStyle = '#0a0c0e'; context.beginPath(); context.arc(0, 1, 5, 0, Math.PI*2); context.fill(); context.strokeStyle = c.color; context.stroke();
             context.fillStyle = c.color; context.beginPath(); context.arc(7, -3, 1.5, 0, Math.PI*2); context.fill();
-            if (dragTarget === c && !isPlaying) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
+            if (dragTarget === c && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
             context.restore();
         });
 
@@ -959,61 +979,34 @@
             context.rotate(rot);
             context.scale(uScale, uScale);
 
-            if (u.type === 'image_unit') {
-                // Draw Image Units (Tank, AT-TE)
-                let img;
-                if (u.customShape === 'tank_image') img = tank_image;
-                else if (u.customShape === 'at_te_image') img = at_te_image;
+            const isSpecialist = u.shape === 'star';
+            const currentSize = 16; const strokeW = (u.bold ? 4 : 2); const innerStrokeW = 1.5;
+
+            if (isSpecialist) {
+                // Specialist Star Rendering
+                context.font = `bold 32px 'Courier New', Courier, monospace`;
+                context.textAlign = "center"; context.textBaseline = "middle";
+                context.fillStyle = u.color; 
+                context.fillText('★', 0, 2); // slight offset adjustment for rendering
                 
-                if (img && img.complete) {
-                    const iWidth = img.width; const iHeight = img.height;
-                    const targetSize = 64; // base target dimension
-                    let dWidth, dHeight;
-                    // Scale maintaining aspect ratio
-                    if (iWidth > iHeight) { dWidth = targetSize; dHeight = (iHeight/iWidth)*targetSize; } 
-                    else { dHeight = targetSize; dWidth = (iWidth/iHeight)*targetSize; }
-                    
-                    // Center and draw image
-                    context.drawImage(img, -dWidth/2, -dHeight/2, dWidth, dHeight);
-
-                    // Add color-coded overlay border/background
-                    context.fillStyle = hexToRgba(u.color, 0.1); 
-                    context.strokeStyle = u.color; context.lineWidth = 3;
-                    context.fillRect(-dWidth/2, -dHeight/2, dWidth, dHeight); 
-                    context.strokeRect(-dWidth/2, -dHeight/2, dWidth, dHeight); 
-
-                    if (dragTarget === u && !isPlaying) { 
-                        context.setLineDash([5, 5]); context.strokeStyle = '#ffffff'; context.lineWidth = 2;
-                        context.strokeRect(-dWidth/2 - 4, -dHeight/2 - 4, dWidth + 8, dHeight + 8); context.setLineDash([]); 
-                    }
-                }
+                // Overlay border
+                context.beginPath(); context.arc(0, 0, currentSize*1.1, 0, Math.PI*2);
+                context.fillStyle = "rgba(0,0,0,0.1)"; context.fill();
+                context.lineWidth = strokeW/1.5; context.strokeStyle = '#000000'; context.stroke();
             } else {
-                // Draw Simple Shape Units
-                const isSpecialist = u.shape === 'star';
-                const currentSize = 16; const strokeW = (u.bold ? 4 : 2); const innerStrokeW = 1.5;
-
-                // Simple shape drawing logic, handle ★ specialist case
-                if (isSpecialist) {
-                    context.font = `bold 32px 'Courier New', Courier, monospace`;
-                    context.textAlign = "center"; context.textBaseline = "middle";
-                    context.fillStyle = u.color; context.fillText('★', 0, 0);
-                    // Add border circle overlay to help visibility
-                    context.beginPath(); context.arc(0, 0, currentSize*1.2, 0, Math.PI*2);
-                    context.fillStyle = "rgba(0,0,0,0.3)"; context.fill();
-                    context.lineWidth = strokeW/1.5; context.strokeStyle = '#000000'; context.stroke();
-                } else {
-                    context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, 0, 4, currentSize); context.fill();
-                    context.fillStyle = u.color; drawShape(context, u.shape, 0, 0, currentSize); context.fill();
-                    context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
-                    context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW; drawShape(context, u.shape, 0, 0, currentSize); context.stroke();
-                }
-
-                if (dragTarget === u && !isPlaying) { 
-                    context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); 
-                    let bbSize = isSpecialist ? currentSize*1.4 : currentSize*1.3;
-                    context.strokeRect(-bbSize, -bbSize, bbSize*2, bbSize*2); context.setLineDash([]); 
-                }
+                // Standard Geometric Rendering (Circle, Triangle, Square, Plane, Tank, ATTE)
+                context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, 0, 4, currentSize); context.fill();
+                context.fillStyle = u.color; drawShape(context, u.shape, 0, 0, currentSize); context.fill();
+                context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
+                context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW; drawShape(context, u.shape, 0, 0, currentSize); context.stroke();
             }
+
+            if (dragTarget === u && !isPlaying && !isRecordingIntro) { 
+                context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); 
+                let bbSize = isSpecialist ? currentSize*1.4 : currentSize*1.3;
+                context.strokeRect(-bbSize, -bbSize, bbSize*2, bbSize*2); context.setLineDash([]); 
+            }
+            
             context.restore();
         });
 
@@ -1023,7 +1016,7 @@
             const w = context.measureText(t.text).width; const boxPad = 8 * tScale; const boxH = fontSize * 1.5; context.translate(t.x, t.y);
             if (t.boxed) { ctx.fillStyle = "rgba(10, 12, 10, 0.85)"; ctx.strokeStyle = t.color; ctx.lineWidth = (t.bold ? 3 : 1.5) * tScale; ctx.fillRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); ctx.strokeRect(-w/2 - boxPad, -boxH + (fontSize*0.35), w + boxPad*2, boxH); }
             context.fillStyle = t.color; context.textAlign = "center"; context.fillText(t.text, 0, 0);
-            if (dragTarget === t && !isPlaying) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
+            if (dragTarget === t && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 2; context.setLineDash([4, 4]); context.strokeRect(-w/2 - boxPad - 4, -boxH + (fontSize*0.35) - 4, w + boxPad*2 + 8, boxH + 8); context.setLineDash([]); }
             context.restore();
         });
     }
@@ -1040,6 +1033,30 @@
         const bW = totalWidth + 80; const bH = fontSize + 40; ctx.fillRect(currentX - bW/2, cy - bH/2, bW, bH); ctx.strokeRect(currentX - bW/2, cy - bH/2, bW, bH);
         ctx.shadowBlur = 10; ctx.fillStyle = '#6DA4CF'; let startX = currentX - totalWidth / 2;
         for (let i = 0; i < textToDraw.length; i++) { const char = textToDraw[i]; const charWidth = ctx.measureText(char).width; ctx.fillText(char, startX + charWidth/2, cy); startX += charWidth + letterSpacing; }
+        ctx.restore();
+    }
+
+    function drawRecordingIntro(elapsed) {
+        let overlayAlpha = 1.0; let textAlpha = 0.0; let currentText = "";
+        
+        if (elapsed < 300) { textAlpha = elapsed/300; currentText = operationName; }
+        else if (elapsed < 1200) { textAlpha = 1; currentText = operationName; }
+        else if (elapsed < 1500) { textAlpha = 1 - (elapsed-1200)/300; currentText = operationName; }
+        else if (elapsed < 1800) { textAlpha = (elapsed-1500)/300; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+        else if (elapsed < 2700) { textAlpha = 1; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+        else if (elapsed <= 3000) { let fadeOut = 1 - (elapsed-2700)/300; textAlpha = fadeOut; overlayAlpha = fadeOut; currentText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
+
+        ctx.save(); ctx.globalAlpha = overlayAlpha; ctx.fillStyle = '#050608'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(109, 164, 207, 0.1)'; for(let i=0; i<canvas.height; i+=4) { ctx.fillRect(0, i, canvas.width, 1); }
+        if (textAlpha > 0) {
+            ctx.globalAlpha = textAlpha; const fontSize = Math.max(30, canvas.width * 0.04); ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            const letterSpacing = 8; let currentX = canvas.width / 2; const cy = canvas.height / 2;
+            ctx.shadowColor = 'rgba(109, 164, 207, 0.8)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(10, 16, 24, 0.9)'; ctx.strokeStyle = '#6DA4CF'; ctx.lineWidth = 4;
+            let totalWidth = 0; for (let i = 0; i < currentText.length; i++) { totalWidth += ctx.measureText(currentText[i]).width + (i < currentText.length - 1 ? letterSpacing : 0); }
+            const bW = totalWidth + 80; const bH = fontSize + 40; ctx.fillRect(currentX - bW/2, cy - bH/2, bW, bH); ctx.strokeRect(currentX - bW/2, cy - bH/2, bW, bH);
+            ctx.shadowBlur = 10; ctx.fillStyle = '#6DA4CF'; let startX = currentX - totalWidth / 2;
+            for (let i = 0; i < currentText.length; i++) { const char = currentText[i]; const charWidth = ctx.measureText(char).width; ctx.fillText(char, startX + charWidth/2, cy); startX += charWidth + letterSpacing; }
+        }
         ctx.restore();
     }
 
@@ -1069,9 +1086,30 @@
                     anim.pos.x = last.x; anim.pos.y = last.y; anim.angle = Math.atan2(last.y - prev.y, last.x - prev.x) + Math.PI/2;
                 }
             }
+
+            // AUTO-ADVANCE FOR RECORDING
+            if (progress >= 1.0 && !isPaused) {
+                if (!playFinishedTime) playFinishedTime = time;
+                else if (time - playFinishedTime > 1000) { // 1 second delay
+                    if (isRecording && currentPhaseIdx < phases.length - 1) {
+                        triggerSmoothTransition(currentPhaseIdx + 1);
+                    }
+                }
+            } else {
+                playFinishedTime = null;
+            }
+        } else {
+            playFinishedTime = null;
         }
 
-        // 2. TRANSITIONS
+        // 2. RECORDING INTRO
+        if (isRecordingIntro) {
+            if (!recIntroStartTime) recIntroStartTime = time; let elapsed = time - recIntroStartTime;
+            if (elapsed > 3000) { isRecordingIntro = false; } 
+            else { drawBaseMap(); drawTacticalElements(ctx, phases[currentPhaseIdx], time); drawRecordingIntro(elapsed); requestAnimationFrame(animate); return; }
+        }
+
+        // 3. TRANSITIONS
         let transSweepProgress = 0;
         if (transitionState === 1 || transitionState === 3) {
             if (!transitionStartTime) transitionStartTime = time; let elapsed = time - transitionStartTime;
@@ -1081,7 +1119,7 @@
             else { if (transitionState === 1 && currentPhaseIdx !== transNewIdx) { currentPhaseIdx = transNewIdx; syncPhasePointers(); } transitionState = 0; transitionAlpha = 0; transitionStartTime = null; }
         }
 
-        // 3. LOCKDOWN 
+        // 4. LOCKDOWN 
         if (isSecureLocked) {
             ctx.fillStyle = '#080a0d'; ctx.fillRect(0,0, canvas.width, canvas.height); ctx.strokeStyle = '#1c2630'; ctx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
@@ -1089,7 +1127,7 @@
             requestAnimationFrame(animate); return; 
         }
         
-        // 4. MAP BASE
+        // 5. MAP BASE
         drawBaseMap();
 
         if (transitionState === 0 || transitionState === 3) {
@@ -1103,7 +1141,7 @@
             }
         }
 
-        // 5. ACTIVE DRAWING PREVIEWS
+        // 6. ACTIVE DRAWING PREVIEWS
         if (currentPolygon && transitionState === 0) {
             ctx.save(); ctx.strokeStyle = currentPolygon.color; ctx.lineWidth = currentPolygon.bold ? 4 : 2;
             ctx.beginPath(); ctx.moveTo(currentPolygon.points[0].x, currentPolygon.points[0].y);
@@ -1172,7 +1210,7 @@
         }
 
         // 7. HOVER HUD
-        if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0) {
+        if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0 && !isRecordingIntro) {
             ctx.save(); 
             if (currentHoverTarget.imgData) {
                 if (!currentHoverTarget.imgObj) { currentHoverTarget.imgObj = new Image(); currentHoverTarget.imgObj.src = currentHoverTarget.imgData; }
