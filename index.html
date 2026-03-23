@@ -136,6 +136,8 @@
                 <option value="square">■ ARMORED</option>
                 <option value="star">★ SPECIALIST</option>
                 <option value="plane">✈ AIR SUPPORT</option>
+                <option value="tank">▤ TANK</option>
+                <option value="atte">◖ AT-TE</option>
             </select>
             <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;">
                 <input type="checkbox" id="boldCheck"> BOLD
@@ -161,9 +163,6 @@
             <button onclick="addUnit('enemy')" style="color: #ff1a1a;">OPFOR</button>
             <button onclick="addUnit('ally')" style="color: #00e64d;">ALLY</button>
             <button onclick="addUnit('objective')" style="color: #ffcc00;">TGT</button>
-            <div class="separator" style="margin: 0 2px;"></div>
-            <button onclick="addUnit('501st', 'tank')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">TANK</button>
-            <button onclick="addUnit('501st', 'atte')" style="color: #0066ff; font-size: 0.9em; background:#345c7d;">AT-TE</button>
         </div>
         <div class="separator"></div>
         <div class="tool-group">
@@ -230,8 +229,6 @@
     let phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
     let currentPhaseIdx = 0;
     let mode = 'move'; let backgroundImage = null; let showGrid = false;
-    let gridLabelStyle = 'std'; 
-    let gridPrefix = ""; 
     
     // Grid divisions perfectly tailored to split the map cleanly
     const gridDivisions = [8, 12, 16, 20, 24, 32, 40, 48];
@@ -266,12 +263,10 @@
     });
 
     document.getElementById('mgrsCheck').addEventListener('change', function(e) { 
-        gridLabelStyle = e.target.checked ? 'mgrs' : 'std';
         drawBaseMap(); 
     });
 
     document.getElementById('mgrsPrefix').addEventListener('input', function(e) { 
-        gridPrefix = e.target.value;
         drawBaseMap(); 
     });
 
@@ -512,8 +507,8 @@
                 currentPhaseIdx = 0; syncPhasePointers(); showGrid = data.showGrid || false;
                 if (data.gridColor) document.getElementById('gridColorPicker').value = data.gridColor;
                 if (data.gridSizeIdx !== undefined) { currentCellSizeIdx = data.gridSizeIdx; document.getElementById('cellSizeSlider').value = currentCellSizeIdx; }
-                if (data.gridLabelStyle) { gridLabelStyle = data.gridLabelStyle; document.getElementById('mgrsCheck').checked = (gridLabelStyle === 'mgrs'); }
-                if (data.gridPrefix) { gridPrefix = data.gridPrefix; document.getElementById('mgrsPrefix').value = gridPrefix; }
+                if (data.gridLabelStyle) { document.getElementById('mgrsCheck').checked = (data.gridLabelStyle === 'mgrs'); }
+                if (data.gridPrefix) { document.getElementById('mgrsPrefix').value = data.gridPrefix; }
 
                 const btn = document.getElementById('btnGrid'); 
                 if (showGrid) { btn.innerText = 'GRID: ON'; btn.classList.add('active-mode'); } 
@@ -541,7 +536,9 @@
     
     function exportData() {
         if (transitionState > 0 || isRecordingIntro) return;
-        const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridSizeIdx: currentCellSizeIdx, gridLabelStyle: gridLabelStyle, gridPrefix: gridPrefix };
+        const isMGRS = document.getElementById('mgrsCheck').checked;
+        const gPrefix = document.getElementById('mgrsPrefix').value;
+        const projectData = { opName: operationName, phases: phases, bgImg: backgroundImage ? backgroundImage.src : null, showGrid: showGrid, gridColor: document.getElementById('gridColorPicker').value, gridSizeIdx: currentCellSizeIdx, gridLabelStyle: (isMGRS ? 'mgrs' : 'std'), gridPrefix: gPrefix };
         const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); 
         const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); 
         let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -629,7 +626,7 @@
         if (mode === 'line') lineTools.style.display = 'inline-flex';
     }
 
-    function addUnit(type, forcedShape = null) {
+    function addUnit(type) {
         if (isSecureLocked || transitionState > 0 || isRecordingIntro) return;
         let color = '#ffffff'; 
         if (type === '501st') color = '#0066ff'; 
@@ -638,9 +635,8 @@
         if (type === 'objective') color = '#ffcc00';
         
         const mods = getModifiers(); 
-        const finalShape = forcedShape ? forcedShape : mods.shape;
-
-        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: finalShape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "" });
+        
+        phases[currentPhaseIdx].units.push({ type: type, color: color, shape: mods.shape, x: canvas.width/2 + (Math.random()*60-30), y: canvas.height/2 + (Math.random()*60-30), scale: 1.0, bold: mods.bold, angle: 0, description: "" });
         setMode('move');
     }
     
@@ -784,45 +780,37 @@
             context.lineTo(-size*0.2, -size*0.4); context.closePath();
         } 
         else if (shape === 'tank') {
-            // Saber Tank Profile
-            context.moveTo(-size*1.3, size*0.4);
-            context.lineTo(size*1.3, size*0.4);
-            context.lineTo(size*1.4, size*0.2);
-            context.lineTo(size*1.0, -size*0.1);
-            context.lineTo(size*0.2, -size*0.1);
-            context.lineTo(-size*0.2, -size*0.3);
-            context.lineTo(-size*0.9, -size*0.3);
-            context.lineTo(-size*1.2, -size*0.1);
-            context.closePath();
-            context.rect(size*0.2, -size*0.25, size*1.4, size*0.1); // Barrel
-            context.arc(-size*0.4, -size*0.3, size*0.25, Math.PI, 0); // Turret
-            context.rect(size*0.8, size*0.1, size*0.7, size*0.08); // Side Cannon
+            // Top-down Saber Tank silhouette
+            context.rect(-size*0.35, -size*0.8, size*0.7, size*1.5);
+            context.moveTo(-size*0.85, size*0.8); context.lineTo(-size*0.85, -size*0.2);
+            context.lineTo(-size*0.45, -size*0.7); context.lineTo(-size*0.35, -size*0.7);
+            context.lineTo(-size*0.35, size*0.8); context.closePath();
+            context.moveTo(size*0.85, size*0.8); context.lineTo(size*0.85, -size*0.2);
+            context.lineTo(size*0.45, -size*0.7); context.lineTo(size*0.35, -size*0.7);
+            context.lineTo(size*0.35, size*0.8); context.closePath();
+            context.rect(-size*0.1, -size*1.3, size*0.2, size*0.6); // Main Gun
+            context.arc(0, 0, size*0.4, 0, Math.PI*2); // Turret Base
         }
         else if (shape === 'atte') {
-            // AT-TE Profile
-            context.moveTo(-size*1.1, size*0.1);
-            context.lineTo(-size*1.2, -size*0.2);
-            context.lineTo(-size*0.8, -size*0.6);
-            context.lineTo(size*0.2, -size*0.7);
-            context.lineTo(size*1.0, -size*0.3);
-            context.lineTo(size*1.3, 0);
-            context.lineTo(size*0.9, size*0.3);
-            context.lineTo(-size*0.9, size*0.3);
-            context.closePath();
-            // Legs
-            [-size*0.8, -size*0.1, size*0.6].forEach(x => {
-                context.moveTo(x, size*0.2); context.lineTo(x - size*0.2, size*0.8); context.lineTo(x + size*0.2, size*0.8); context.closePath();
-                context.arc(x, size*0.8, size*0.25, Math.PI, 0);
-            });
-            // Mass Driver
-            context.arc(0, -size*0.7, size*0.2, 0, Math.PI*2);
-            context.rect(-size*0.2, -size*0.8, size*1.8, size*0.15);
-            // Front Cannons
-            context.rect(size*1.1, -size*0.1, size*0.5, size*0.06);
-            context.rect(size*1.2, size*0.05, size*0.5, size*0.06);
+            // Top-down AT-TE silhouette
+            context.moveTo(0, -size*1.1); context.lineTo(size*0.4, -size*0.8);
+            context.lineTo(size*0.5, size*0.6); context.lineTo(size*0.2, size*0.9);
+            context.lineTo(-size*0.2, size*0.9); context.lineTo(-size*0.5, size*0.6);
+            context.lineTo(-size*0.4, -size*0.8); context.closePath();
+            context.rect(-size*0.9, -size*0.6, size*0.5, size*0.2); context.rect(size*0.4, -size*0.6, size*0.5, size*0.2);
+            context.rect(-size*1.0, -size*0.1, size*0.5, size*0.2); context.rect(size*0.5, -size*0.1, size*0.5, size*0.2);
+            context.rect(-size*0.9, size*0.4, size*0.5, size*0.2); context.rect(size*0.4, size*0.4, size*0.5, size*0.2);
+            context.arc(-size*0.9, -size*0.5, size*0.15, 0, Math.PI*2); context.arc(size*0.9, -size*0.5, size*0.15, 0, Math.PI*2);
+            context.arc(-size*1.0, 0, size*0.15, 0, Math.PI*2); context.arc(size*1.0, 0, size*0.15, 0, Math.PI*2);
+            context.arc(-size*0.9, size*0.5, size*0.15, 0, Math.PI*2); context.arc(size*0.9, size*0.5, size*0.15, 0, Math.PI*2);
+            context.rect(-size*0.1, -size*1.3, size*0.2, size*1.0); context.arc(0, size*0.1, size*0.25, 0, Math.PI*2);
+            context.moveTo(size*0.1, -size*1.0); context.lineTo(size*0.15, -size*1.4); context.lineTo(size*0.2, -size*1.0);
+            context.moveTo(-size*0.1, -size*1.0); context.lineTo(-size*0.15, -size*1.4); context.lineTo(-size*0.2, -size*1.0);
+            context.moveTo(size*0.3, -size*0.9); context.lineTo(size*0.35, -size*1.3); context.lineTo(size*0.4, -size*0.9);
+            context.moveTo(-size*0.3, -size*0.9); context.lineTo(-size*0.35, -size*1.3); context.lineTo(-size*0.4, -size*0.9);
         }
         else if (shape === 'star') {
-            // Star handled explicitly in unit render loop due to text scaling
+            // Handled explicitly in draw function
         }
         else { context.arc(0, 0, size, 0, Math.PI*2); }
         context.restore();
@@ -847,6 +835,8 @@
 
     function drawBaseMap() {
         let startX = 0, startY = 0, mapW = canvas.width, mapH = canvas.height;
+        const isMGRS = document.getElementById('mgrsCheck').checked;
+        const gPrefix = document.getElementById('mgrsPrefix').value;
 
         if (backgroundImage) { 
             const imgRatio = backgroundImage.width / backgroundImage.height;
@@ -903,25 +893,25 @@
             ctx.textBaseline = "middle";
 
             for (let i = 0; i < cols; i++) { 
-                let labelX = (gridLabelStyle === 'mgrs') ? String(i + 1).padStart(2, '0') : getColLabel(i);
-                ctx.font = (gridLabelStyle === 'mgrs') ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
+                let labelX = isMGRS ? String(i).padStart(2, '0') : getColLabel(i);
+                ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
                 ctx.fillText(labelX, startX + (i * cSize) + (cSize / 2), startY + 12); 
             } 
             for (let j = 0; j < rows; j++) { 
-                let labelY = (gridLabelStyle === 'mgrs') ? String(j + 1).padStart(2, '0') : (j + 1);
-                ctx.font = (gridLabelStyle === 'mgrs') ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
+                let labelY = isMGRS ? String(j).padStart(2, '0') : (j + 1);
+                ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
                 ctx.fillText(labelY, startX + 16, startY + (j * cSize) + (cSize / 2)); 
             }
 
             // Draw Corner Block to cover intersecting text
-            let cornerW = (gridLabelStyle === 'mgrs' && gridPrefix.trim() !== "") ? Math.max(80, cSize) : 32;
+            let cornerW = (isMGRS && gPrefix.trim() !== "") ? Math.max(80, cSize) : 32;
             ctx.fillStyle = 'rgba(10, 12, 16, 1)';
             ctx.fillRect(startX, startY, cornerW, 24);
 
-            if (gridLabelStyle === 'mgrs' && gridPrefix.trim() !== "") {
+            if (isMGRS && gPrefix.trim() !== "") {
                 ctx.fillStyle = '#ffcc00';
                 ctx.font = "bold 12px 'Courier New', Courier, monospace";
-                ctx.fillText(gridPrefix, startX + cornerW / 2, startY + 12);
+                ctx.fillText(gPrefix, startX + cornerW / 2, startY + 12);
             }
             ctx.restore();
         }
@@ -996,34 +986,33 @@
 
         (phaseData.units || []).forEach(u => {
             const uScale = u.scale || 1.0;
+            const currentSize = 16 * uScale; const strokeW = (u.bold ? 4 : 2) * uScale; const innerStrokeW = 1.5 * uScale;
             let cx = u.x; let cy = u.y; let rot = u.angle || 0;
             if (activeAnimations.has(u)) { let anim = activeAnimations.get(u); cx = anim.pos.x; cy = anim.pos.y; rot = anim.angle; }
             
             context.save();
             context.translate(cx, cy);
             context.rotate(rot);
-            context.scale(uScale, uScale);
 
             const isSpecialist = u.shape === 'star';
-            const currentSize = 16; const strokeW = (u.bold ? 4 : 2); const innerStrokeW = 1.5;
 
             if (isSpecialist) {
-                // Specialist Star Rendering
-                context.font = `bold 32px 'Courier New', Courier, monospace`;
+                // Star rendering
+                context.font = `bold ${32*uScale}px 'Courier New', Courier, monospace`;
                 context.textAlign = "center"; context.textBaseline = "middle";
                 context.fillStyle = u.color; 
-                context.fillText('★', 0, 2); // slight offset adjustment for rendering
+                context.fillText('★', 0, 2*uScale); 
                 
-                // Overlay border
                 context.beginPath(); context.arc(0, 0, currentSize*1.1, 0, Math.PI*2);
                 context.fillStyle = "rgba(0,0,0,0.1)"; context.fill();
                 context.lineWidth = strokeW/1.5; context.strokeStyle = '#000000'; context.stroke();
             } else {
-                // Standard Geometric Rendering (Circle, Triangle, Square, Plane, Tank, ATTE)
-                context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, 0, 4, currentSize); context.fill();
+                // Vector Geometric Shape Rendering
+                context.fillStyle = "rgba(0,0,0,0.6)"; drawShape(context, u.shape, 0, 4*uScale, currentSize); context.fill();
                 context.fillStyle = u.color; drawShape(context, u.shape, 0, 0, currentSize); context.fill();
                 context.strokeStyle = '#000000'; context.lineWidth = strokeW; context.stroke();
-                context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW; drawShape(context, u.shape, 0, 0, currentSize); context.stroke();
+                context.save(); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown);
+                context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
             }
 
             if (dragTarget === u && !isPlaying && !isRecordingIntro) { 
@@ -1234,7 +1223,51 @@
             }
         }
 
-        // 7. HOVER HUD
+        // 7. LIVE MGRS MOUSE TRACKER
+        const isMGRS = document.getElementById('mgrsCheck').checked;
+        if (showGrid && isMGRS && !isRecordingIntro && transitionState === 0 && mouseX > 0 && mouseY > 0) {
+            let mapW = canvas.width, mapH = canvas.height, stX = 0, stY = 0;
+            if (backgroundImage) {
+               let iR = backgroundImage.width / backgroundImage.height;
+               let cR = canvas.width / canvas.height;
+               if (iR > cR) { mapW = canvas.width; mapH = canvas.width / iR; stY = (canvas.height - mapH)/2; }
+               else { mapH = canvas.height; mapW = canvas.height * iR; stX = (canvas.width - mapW)/2; }
+            }
+            let cSize = mapW / (gridDivisions[Math.min(currentCellSizeIdx, gridDivisions.length - 1)] || 24);
+            
+            let cCol = Math.floor((mouseX - stX) / cSize);
+            let cRow = Math.floor((mouseY - stY) / cSize);
+            
+            // Only draw tracker if mouse is inside the actual map boundaries
+            if (cCol >= 0 && cRow >= 0 && mouseX >= stX && mouseX <= stX + mapW && mouseY >= stY && mouseY <= stY + mapH) {
+                let gPrefix = document.getElementById('mgrsPrefix').value;
+                let mgrsStr = `${gPrefix} ${String(cCol).padStart(2,'0')} ${String(cRow).padStart(2,'0')}`.trim();
+                
+                ctx.save();
+                ctx.font = "bold 14px 'Courier New', Courier, monospace";
+                let tw = ctx.measureText(mgrsStr).width;
+                
+                // Draw floating HUD box next to mouse
+                let boxX = mouseX + 15; let boxY = mouseY + 15;
+                // Keep it on screen
+                if (boxX + tw + 16 > canvas.width) boxX = mouseX - tw - 25;
+                if (boxY + 26 > canvas.height) boxY = mouseY - 35;
+                
+                ctx.fillStyle = "rgba(10, 12, 16, 0.9)";
+                ctx.strokeStyle = "#6DA4CF";
+                ctx.lineWidth = 1;
+                ctx.fillRect(boxX, boxY, tw + 16, 26);
+                ctx.strokeRect(boxX, boxY, tw + 16, 26);
+                
+                ctx.fillStyle = "#ffcc00";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(mgrsStr, boxX + 8, boxY + 13);
+                ctx.restore();
+            }
+        }
+
+        // 8. HOVER HUD
         if (currentHoverTarget && !isDragging && mode !== 'line' && mode !== 'zone' && mode !== 'draw' && mode !== 'ping' && transitionState === 0 && !isRecordingIntro) {
             ctx.save(); 
             if (currentHoverTarget.imgData) {
