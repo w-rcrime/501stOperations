@@ -53,8 +53,6 @@
         .legend-dot { font-size: 1.4em; line-height: 0.5; text-shadow: 0 0 5px currentColor; }
         #credits-box { bottom: 20px; right: 20px; padding: 8px 12px; font-size: 0.7em; border-right: 4px solid #6DA4CF; border-left: none; border-top: none; border-bottom: none; text-align: right; line-height: 1.5; color: #6DA4CF; }
         
-        #active-network-hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,230,77,0.2); color: #00e64d; padding: 5px 15px; border: 1px solid #00e64d; font-size: 0.8em; font-weight: bold; letter-spacing: 2px; border-radius: 4px; display: none; z-index: 100; pointer-events: none;}
-        
         @keyframes pulseRec { 0% { background-color: #1c2630; color: #ff4444; border-color: #ff4444; } 50% { background-color: #ff4444; color: #fff; border-color: #fff; } 100% { background-color: #1c2630; color: #ff4444; border-color: #ff4444; } }
         .recording-active { animation: pulseRec 1.5s infinite; }
     </style>
@@ -92,13 +90,14 @@
             <button id="btnGrid" onclick="toggleGrid()">GRID: OFF</button>
             <label class="file-label">MAP <input type="file" id="bgInput" accept="image/*"></label>
             <div class="separator" style="margin:0;"></div>
+            <button onclick="exportImage()" style="color: #00e64d;" title="Save Image">[ IMG ]</button>
             <button id="btnPlay" onclick="togglePlayback()" style="color: #00e64d;" title="Animate Units along Paths">▶ PLAY</button>
             <button id="btnStop" onclick="stopPlayback()" style="color: #ff4444; display: none;" title="Stop & Reset Animation">⏹ STOP</button>
             <button id="btnRecord" onclick="toggleRecording()" style="color: #ff4444;" title="Record Cinematic Video">[ REC ANIM ]</button>
             <button onclick="undo()" style="color: #ffcc00;" title="Undo Last Action (Ctrl+Z)">[ UNDO ]</button>
             <button onclick="exportData()" style="color: #00a2ff;" title="Save JSON">[ SAVE ]</button>
             <label class="file-label" style="color: #ffcc00;" title="Load JSON">LOAD <input type="file" id="dataInput" accept=".json"></label>
-            <button onclick="clearCanvas()" style="color:#ff4444;">WIPE</button>
+            <button onclick="clearCanvas()" style="color:#ff4444;" title="Hard Reset Interface">WIPE</button>
         </div>
     </div>
 
@@ -114,6 +113,7 @@
             </select>
             <input type="color" id="customColorPicker" value="#0066ff" title="Custom Entity Color" style="height: 28px; width: 32px; padding: 0; border: 1px solid #6DA4CF; background: none; cursor: pointer;">
             <div class="separator" style="margin: 0 2px;"></div>
+            
             <select id="unitShapeSelect" title="Unit Shape">
                 <option value="circle">● SHINY</option>
                 <option value="triangle">▲ INFANTRY</option>
@@ -123,15 +123,19 @@
                 <option value="tank">▤ TANK</option>
                 <option value="atte">◖ AT-TE</option>
             </select>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="boldCheck"> BOLD</label>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="checkbox" id="boldCheck"> BOLD
+            </label>
         </div>
         <div class="separator"></div>
         <div class="tool-group">
             <span style="font-size:0.8em; color:#6DA4CF;">GRID OPTIONS:</span>
             <input type="color" id="gridColorPicker" value="#6DA4CF" title="Grid Color">
             <div class="separator" style="margin: 0 2px;"></div>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="mgrsCheck"> MGRS</label>
-            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF;">
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
+                <input type="checkbox" id="mgrsCheck"> MGRS-Style
+            </label>
+            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF; font-family:inherit;">
             <div class="separator" style="margin: 0 2px;"></div>
             <span style="font-size:0.8em; color:#6DA4CF;">Snap Size:</span>
             <input type="range" id="cellSizeSlider" min="0" max="7" step="1" value="4" style="width: 90px;" title="Scale Grid Density">
@@ -147,16 +151,30 @@
         <div class="separator"></div>
         <div class="tool-group">
             <button onclick="addText()">+ TEXT</button>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="boxTextCheck" checked> BOXED</label>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
+                <input type="checkbox" id="boxTextCheck" checked> BOXED
+            </label>
+            <button id="btnCamera" onclick="setMode('camera')" style="margin-left:5px; color:#ffcc00;">+ CAMERA VIEW</button>
         </div>
 
         <div class="tool-group" id="lineTools" style="display:none; margin-left:10px;">
-            <select id="lineShape"><option value="single">/ SINGLE</option><option value="multi">/\ STENCIL</option></select>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer; color:#ff1a1a;"><input type="checkbox" id="pathInvisibleCheck"> INVISIBLE</label>
+            <select id="lineShape">
+                <option value="single">/ SINGLE</option>
+                <option value="multi">/\ STENCIL</option>
+            </select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer; color:#ff1a1a;">
+                <input type="checkbox" id="pathInvisibleCheck"> INVISIBLE
+            </label>
         </div>
         <div class="tool-group" id="zoneTools" style="display:none; margin-left:10px;">
-            <select id="zoneShape"><option value="circle">O CIRCLE</option><option value="rect">[] RECT</option><option value="polygon">⬠ STENCIL</option></select>
-            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="zoneStripedCheck" checked> STRIPED</label>
+            <select id="zoneShape">
+                <option value="circle">O CIRCLE</option>
+                <option value="rect">[] RECT</option>
+                <option value="polygon">⬠ STENCIL</option>
+            </select>
+            <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
+                <input type="checkbox" id="zoneStripedCheck" checked> STRIPED
+            </label>
         </div>
     </div>
 </div>
@@ -195,11 +213,12 @@
     let phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
     let currentPhaseIdx = 0;
     let mode = 'move'; let backgroundImage = null; let showGrid = false;
-    let gridLabelStyle = 'std'; let gridPrefix = ""; 
+    let gridLabelStyle = 'std'; 
+    let gridPrefix = ""; 
     
     // Grid divisions perfectly tailored to split the map cleanly
     const gridDivisions = [8, 12, 16, 20, 24, 32, 40, 48];
-    let currentCellSizeIdx = 4; 
+    let currentCellSizeIdx = 4; // Defaults to 24 divisions
 
     // Interaction & Tool State
     let isDragging = false; let dragTarget = null; 
@@ -208,6 +227,7 @@
     let mouseX = -100; let mouseY = -100; let lastMouseX = 0; let lastMouseY = 0;
     let startScale = 1.0; let startMouseX = 0; let pendingCamX = 0; let pendingCamY = 0;
 
+    // Media & Playback State
     let mediaRecorder = null; let recordedChunks = []; let isRecording = false;
     let isRecordingIntro = false; let recIntroStartTime = null; 
     let isSecureLocked = false; 
@@ -313,6 +333,7 @@
     function getModifiers() { return { bold: document.getElementById('boldCheck').checked, color: document.getElementById('customColorPicker').value, shape: document.getElementById('unitShapeSelect').value }; }
     function getColLabel(index) { let label = ''; let curr = index; while (curr >= 0) { label = String.fromCharCode(65 + (curr % 26)) + label; curr = Math.floor(curr / 26) - 1; } return label; }
 
+    // --- HIT DETECTION ---
     function getHoveredObject(mx, my) { 
         const phase = phases[currentPhaseIdx];
         const hitText = [...(phase.texts || [])].reverse().find(t => {
@@ -320,13 +341,18 @@
             const w = ctx.measureText(t.text).width; const boxPadding = 8 * sc; const boxH = fontSize * 1.5;
             return mx > t.x - w/2 - boxPadding && mx < t.x + w/2 + boxPadding && my > t.y - boxH + (fontSize*0.25) && my < t.y + (fontSize*0.5);
         }); if (hitText) return hitText;
+
+        const hitCam = [...(phase.cameras || [])].reverse().find(c => Math.hypot(mx - c.x, my - c.y) <= 20); if (hitCam) return hitCam;
         const hitUnit = [...(phase.units || [])].reverse().find(u => Math.hypot(mx - u.x, my - u.y) <= (16 * (u.scale || 1.0)) + 10); if (hitUnit) return hitUnit;
+
         const hitLine = [...(phase.lines || [])].reverse().find(l => {
             const sc = l.scale || 1.0;
             if (l.shape === 'multi') { for(let i=0; i<l.points.length-1; i++) { if (distToSegmentSquared({x: mx, y: my}, l.points[i], l.points[i+1]) < Math.pow(15 * sc, 2)) return true; } } 
             else { if (distToSegmentSquared({x: mx, y: my}, {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}) < Math.pow(15 * sc, 2)) return true; }
         }); if (hitLine) return hitLine;
+
         const hitDraw = [...(phase.drawings || [])].reverse().find(d => { for(let i=0; i<d.points.length-1; i++) { if(distToSegmentSquared({x: mx, y: my}, d.points[i], d.points[i+1]) < 100) return true; } }); if (hitDraw) return hitDraw;
+
         const hitZone = [...(phase.zones || [])].reverse().find(z => {
             const sc = z.scale || 1.0;
             if (z.shape === 'circle') return Math.hypot(mx - z.x, my - z.y) <= z.r * sc;
@@ -338,9 +364,9 @@
     }
 
     // --- PHASE & STATE CONTROL ---
-    function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; } triggerAutoSave(); }
+    function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; triggerAutoSave(); } }
     function syncPhasePointers() { document.getElementById('phaseDisplay').innerText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); } triggerAutoSave(); }
+    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); triggerAutoSave(); } }
     function resetInteractions() { dragTarget = null; currentPolygon = null; currentLine = null; currentMultiLine = null; currentZone = null; currentDrawing = null; isDragging = false; currentHoverTarget = null; }
 
     function triggerSmoothTransition(newIdx) { 
@@ -404,19 +430,13 @@
     }
 
     document.getElementById('cameraInput').addEventListener('change', e => {
-        const file = e.target.files[0]; if (!file) return; 
-        const reader = new FileReader();
-        reader.onload = event => { 
-            if(!phases[currentPhaseIdx].cameras) phases[currentPhaseIdx].cameras = []; 
-            phases[currentPhaseIdx].cameras.push({ x: pendingCamX, y: pendingCamY, color: getModifiers().color, imgData: event.target.result, description: "GROUND VIEW" }); 
-            saveHistory(); triggerAutoSave();
-        }; reader.readAsDataURL(file); e.target.value = ''; 
+        const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
+        reader.onload = event => { if(!phases[currentPhaseIdx].cameras) phases[currentPhaseIdx].cameras = []; phases[currentPhaseIdx].cameras.push({ x: pendingCamX, y: pendingCamY, color: getModifiers().color, imgData: event.target.result, description: "GROUND VIEW" }); saveHistory(); triggerAutoSave(); };
+        reader.readAsDataURL(file); e.target.value = ''; 
     });
 
     document.getElementById('bgInput').addEventListener('change', (e) => {
-        if (transitionState > 0 || isRecordingIntro) return; 
-        const file = e.target.files[0]; if (!file) return; 
-        const reader = new FileReader();
+        if (transitionState > 0 || isRecordingIntro) return; const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
         reader.onload = (event) => { const img = new Image(); img.onload = () => { backgroundImage = img; triggerAutoSave(); }; img.src = event.target.result; }; 
         reader.readAsDataURL(file); e.target.value = ''; 
     });
@@ -433,6 +453,34 @@
         const dataBlob = new Blob([JSON.stringify(projectData)], { type: "application/json" }); const url = URL.createObjectURL(dataBlob); const link = document.createElement('a'); let safeOp = operationName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); link.download = `${safeOp}_data.json`; link.href = url; link.click(); URL.revokeObjectURL(url);
     }
     
+    function clearCanvas() { 
+        if (transitionState > 0 || isRecordingIntro) return; 
+        if (confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
+            // 1. Hard Reset Data State
+            operationName = "OPERATION: UNNAMED";
+            document.getElementById('opNameDisplay').innerText = operationName;
+            phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
+            currentPhaseIdx = 0; 
+            syncPhasePointers(); 
+            
+            // 2. Hard Reset Map Image
+            backgroundImage = null; 
+            document.getElementById('bgInput').value = '';
+            
+            // 3. Clear all visual tracking and loops
+            resetInteractions(); 
+            activePings = [];
+            activeAnimations.clear();
+            stopPlayback(); 
+            
+            // 4. Force-reset memory caches to prevent ghost data resurrecting
+            historyStack = []; 
+            saveHistory(); 
+            localStorage.removeItem('501st_tactical_autosave'); 
+            triggerAutoSave(); 
+        } 
+    }
+
     function toggleRecording() {
         if (isSecureLocked || transitionState > 0) return; 
         const btnRecord = document.getElementById('btnRecord');
@@ -471,6 +519,7 @@
             'line': {c: '#ff1a1a', t: 'OP-MODE: TACTICAL PATH<br>> SINGLE: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK LAST POINT TO FINISH<br>> RIGHT-CLICK TO ADD INTEL'},
             'zone': {c: '#00e64d', t: 'OP-MODE: SECURE ZONE<br>> CIRCLE/RECT: CLICK & DRAG<br>> STENCIL: PLOT POINTS, CLICK ORIGIN TO CLOSE'},
             'ping': {c: '#00e64d', t: 'OP-MODE: PING<br>> CLICK TO SEND A TEMPORARY RADAR PING TO YOUR SQUAD'},
+            'camera': {c: '#ffcc00', t: 'OP-MODE: CAMERA VIEW<br>> CLICK ON THE MAP TO PLACE A GROUND CAMERA<br>> YOU WILL BE PROMPTED TO UPLOAD A REFERENCE IMAGE'},
             'kia': {c: '#ff1a1a', t: 'OP-MODE: CASUALTY / KIA MARKER<br>> CLICK ANY UNIT TO MARK AS DESTROYED OR KIA'}
         };
         if (modeData[mode]) { let btnId = 'btn' + mode.charAt(0).toUpperCase() + mode.slice(1); if(btnId === 'btnEdittext') btnId = 'btnEditText'; const btn = document.getElementById(btnId); if(btn) btn.classList.add('active-mode'); hintBox.innerHTML = `<b style='color:${modeData[mode].c};'>${modeData[mode].t}</b>`; hintBox.style.borderLeftColor = modeData[mode].c; }
@@ -524,6 +573,8 @@
             isDragging = true; const mods = getModifiers(); currentDrawing = { points: [{x: mouseX, y: mouseY}], color: mods.color, bold: mods.bold, description: "" };
         } else if (mode === 'ping') {
             activePings.push({ x: mouseX, y: mouseY, radius: 0, alpha: 1, color: getModifiers().color }); 
+        } else if (mode === 'camera') {
+            pendingCamX = mouseX; pendingCamY = mouseY; document.getElementById('cameraInput').click(); setMode('move'); 
         } else if (mode === 'zone') {
             const shapeType = document.getElementById('zoneShape').value; const mods = getModifiers(); const isStriped = document.getElementById('zoneStripedCheck').checked;
             if (shapeType === 'polygon') {
@@ -577,7 +628,8 @@
         } else if (mode === 'draw' && currentDrawing) {
             if (Math.hypot(mouseX - currentDrawing.points[currentDrawing.points.length - 1].x, mouseY - currentDrawing.points[currentDrawing.points.length - 1].y) > 3) { currentDrawing.points.push({x: mouseX, y: mouseY}); }
         } else if (mode === 'zone' && currentZone) {
-            currentZone.w = mouseX - currentZone.x; currentZone.h = mouseY - currentZone.y; currentZone.r = Math.hypot(currentZone.w, currentZone.h);
+            currentZone.w = mouseX - currentZone.x; currentZone.h = mouseY - currentZone.y;
+            currentZone.r = Math.hypot(currentZone.w, currentZone.h);
         }
         lastMouseX = mouseX; lastMouseY = mouseY;
     });
@@ -611,26 +663,24 @@
         else if (shape === 'triangle') { context.moveTo(0, -size*1.2); context.lineTo(size*1.1, size*0.9); context.lineTo(-size*1.1, size*0.9); context.closePath(); } 
         else if (shape === 'plane') { context.moveTo(0, -size*1.2); context.lineTo(size*0.2, -size*0.4); context.lineTo(size*1.2, 0); context.lineTo(size*1.2, size*0.3); context.lineTo(size*0.25, size*0.5); context.lineTo(size*0.15, size*0.9); context.lineTo(size*0.5, size*1.1); context.lineTo(size*0.5, size*1.3); context.lineTo(0, size*1.1); context.lineTo(-size*0.5, size*1.3); context.lineTo(-size*0.5, size*1.1); context.lineTo(-size*0.15, size*0.9); context.lineTo(-size*0.25, size*0.5); context.lineTo(-size*1.2, size*0.3); context.lineTo(-size*1.2, 0); context.lineTo(-size*0.2, -size*0.4); context.closePath(); } 
         else if (shape === 'tank') { 
-            // Crisp Vector Saber Tank
-            context.rect(-size*0.4, -size*0.9, size*0.8, size*1.6); // Center Hull
-            context.rect(-size*0.9, -size*0.6, size*0.4, size*1.4); // L Tread
-            context.rect(size*0.5, -size*0.6, size*0.4, size*1.4); // R Tread
-            context.rect(-size*0.15, -size*1.3, size*0.1, size*0.6); // Twin L
-            context.rect(size*0.05, -size*1.3, size*0.1, size*0.6); // Twin R
-            context.arc(0, 0, size*0.45, 0, Math.PI*2); // Dorsal Hatch/Turret
+            context.rect(-size*0.4, -size*0.9, size*0.8, size*1.6); 
+            context.rect(-size*0.9, -size*0.6, size*0.4, size*1.4); 
+            context.rect(size*0.5, -size*0.6, size*0.4, size*1.4); 
+            context.rect(-size*0.15, -size*1.3, size*0.1, size*0.6); 
+            context.rect(size*0.05, -size*1.3, size*0.1, size*0.6); 
+            context.arc(0, 0, size*0.45, 0, Math.PI*2); 
         }
         else if (shape === 'atte') { 
-            // Crisp Vector AT-TE Blueprint
             context.moveTo(0, -size*1.1); context.lineTo(size*0.5, -size*0.7); context.lineTo(size*0.6, size*0.7); context.lineTo(0, size*1.1); context.lineTo(-size*0.6, size*0.7); context.lineTo(-size*0.5, -size*0.7); context.closePath();
-            context.rect(size*0.4, -size*0.85, size*0.6, size*0.25); // FR
-            context.rect(size*0.5, -size*0.15, size*0.7, size*0.3); // MR
-            context.rect(size*0.4, size*0.55, size*0.6, size*0.25); // RR
-            context.rect(-size*1.0, -size*0.85, size*0.6, size*0.25); // FL
-            context.rect(-size*1.2, -size*0.15, size*0.7, size*0.3); // ML
-            context.rect(-size*1.0, size*0.55, size*0.6, size*0.25); // RL
-            context.rect(-size*0.15, -size*1.4, size*0.3, size*1.2); // Mass Driver
-            context.rect(size*0.2, -size*1.2, size*0.15, size*0.4); // Gun L
-            context.rect(-size*0.35, -size*1.2, size*0.15, size*0.4); // Gun R
+            context.rect(size*0.4, -size*0.85, size*0.6, size*0.25); 
+            context.rect(size*0.5, -size*0.15, size*0.7, size*0.3); 
+            context.rect(size*0.4, size*0.55, size*0.6, size*0.25); 
+            context.rect(-size*1.0, -size*0.85, size*0.6, size*0.25); 
+            context.rect(-size*1.2, -size*0.15, size*0.7, size*0.3); 
+            context.rect(-size*1.0, size*0.55, size*0.6, size*0.25); 
+            context.rect(-size*0.15, -size*1.4, size*0.3, size*1.2); 
+            context.rect(size*0.2, -size*1.2, size*0.15, size*0.4); 
+            context.rect(-size*0.35, -size*1.2, size*0.15, size*0.4); 
         }
         else if (shape === 'star') {
             // Star handled explicitly in unit render loop due to text scaling
@@ -726,6 +776,16 @@
             if (dragTarget === d && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.lineWidth = 1; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]); }
         });
 
+        (phaseData.cameras || []).forEach(c => {
+            context.save(); context.translate(c.x, c.y);
+            context.fillStyle = hexToRgba(c.color, 0.2); context.strokeStyle = c.color; context.lineWidth = 2;
+            context.beginPath(); context.moveTo(-12, -6); context.lineTo(-6, -12); context.lineTo(6, -12); context.lineTo(12, -6); context.lineTo(12, 10); context.lineTo(-12, 10); context.closePath(); context.fill(); context.stroke();
+            context.fillStyle = '#0a0c0e'; context.beginPath(); context.arc(0, 1, 5, 0, Math.PI*2); context.fill(); context.strokeStyle = c.color; context.stroke();
+            context.fillStyle = c.color; context.beginPath(); context.arc(7, -3, 1.5, 0, Math.PI*2); context.fill();
+            if (dragTarget === c && !isPlaying && !isRecordingIntro) { context.strokeStyle = '#ffffff'; context.setLineDash([3, 3]); context.strokeRect(-16, -16, 32, 32); context.setLineDash([]); }
+            context.restore();
+        });
+
         (phaseData.units || []).forEach(u => {
             const uScale = u.scale || 1.0; const currentSize = 16 * uScale; const strokeW = (u.bold ? 4 : 2) * uScale; const innerStrokeW = 1.5 * uScale;
             let cx = u.x; let cy = u.y; let rot = u.angle || 0;
@@ -743,10 +803,9 @@
                 context.save(); const scaleDown = Math.max(0.1, (currentSize - strokeW) / currentSize); context.scale(scaleDown, scaleDown); context.strokeStyle = 'rgba(255,255,255,0.4)'; context.lineWidth = innerStrokeW / scaleDown; drawShape(context, u.shape, 0, 0, currentSize); context.stroke(); context.restore();
             }
 
-            // SMALLER, CRISPER Red Tactical X
             if (u.isKIA) {
                 context.globalAlpha = 1.0; context.strokeStyle = '#ff1a1a'; context.lineWidth = 3 * uScale; context.beginPath();
-                let xSize = currentSize * 0.6; // Smaller bounds
+                let xSize = currentSize * 0.6; 
                 context.moveTo(-xSize, -xSize); context.lineTo(xSize, xSize); context.moveTo(xSize, -xSize); context.lineTo(-xSize, xSize); context.stroke();
             }
 
