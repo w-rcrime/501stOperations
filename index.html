@@ -73,6 +73,7 @@
             <span id="phaseDisplay" onclick="renamePhase()" style="color:#6DA4CF; font-weight:bold; min-width:80px; text-align:center; cursor:pointer;" title="Click to rename phase">PHASE 1</span>
             <button onclick="nextPhase()" style="border:none; background:none; color:#6DA4CF;">[>]</button>
             <button onclick="addPhase()" style="color:#ffcc00; border:none; background:none; padding:0 5px;" title="Duplicate to next phase">[+ COPY]</button>
+            <button onclick="deletePhase()" style="color:#ff1a1a; border:none; background:none; padding:0 5px;" title="Delete current phase">[- DEL]</button>
         </div>
         <div class="separator"></div>
         <button id="btnMove" class="active-mode" onclick="setMode('move')">MOVE</button>
@@ -135,7 +136,7 @@
             <label style="font-size:0.75em; display:flex; align-items:center; gap:2px; cursor:pointer;">
                 <input type="checkbox" id="mgrsCheck"> MGRS-Style
             </label>
-            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF; font-family:inherit;">
+            <input type="text" id="mgrsPrefix" placeholder="Prefix (e.g. 16U EV)" style="font-size:0.8em; width:130px; padding: 3px 5px; background:#1c2630; color:#d1e8ff; border:1px solid #6DA4CF;">
             <div class="separator" style="margin: 0 2px;"></div>
             <span style="font-size:0.8em; color:#6DA4CF;">Snap Size:</span>
             <input type="range" id="cellSizeSlider" min="0" max="7" step="1" value="4" style="width: 90px;" title="Scale Grid Density">
@@ -242,17 +243,20 @@
     let activeAnimations = new Map(); 
     let historyStack = [];
 
-    // --- HISTORY / UNDO LOGIC ---
+    // --- HISTORY / UNDO LOGIC (Upgraded) ---
     function saveHistory() {
-        historyStack.push(JSON.stringify(phases[currentPhaseIdx]));
+        historyStack.push(JSON.stringify({ phases: phases, idx: currentPhaseIdx }));
         if (historyStack.length > 30) historyStack.shift(); 
     }
 
     function undo() {
         if (transitionState > 0 || isPlaying || isRecordingIntro || historyStack.length <= 1) return;
         resetInteractions(); 
-        historyStack.pop(); 
-        phases[currentPhaseIdx] = JSON.parse(historyStack[historyStack.length - 1]); 
+        historyStack.pop(); // Remove the current state
+        let restored = JSON.parse(historyStack[historyStack.length - 1]); 
+        phases = restored.phases;
+        currentPhaseIdx = restored.idx;
+        syncPhasePointers();
         triggerAutoSave();
     }
 
@@ -366,7 +370,7 @@
     // --- PHASE & STATE CONTROL ---
     function renameOp() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE OPERATION DESIGNATION:", operationName); if (newName && newName.trim() !== "") { operationName = newName.trim().toUpperCase(); document.getElementById('opNameDisplay').innerText = operationName; triggerAutoSave(); } }
     function syncPhasePointers() { document.getElementById('phaseDisplay').innerText = phases[currentPhaseIdx].name || `PHASE ${currentPhaseIdx + 1}`; }
-    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); triggerAutoSave(); } }
+    function renamePhase() { if (transitionState > 0 || isPlaying || isRecordingIntro) return; const newName = prompt("ENTER SECURE PHASE DESIGNATION:", phases[currentPhaseIdx].name); if (newName && newName.trim() !== "") { phases[currentPhaseIdx].name = newName.trim().toUpperCase(); syncPhasePointers(); saveHistory(); triggerAutoSave(); } }
     function resetInteractions() { dragTarget = null; currentPolygon = null; currentLine = null; currentMultiLine = null; currentZone = null; currentDrawing = null; isDragging = false; currentHoverTarget = null; }
 
     function triggerSmoothTransition(newIdx) { 
@@ -379,7 +383,17 @@
         const current = phases[currentPhaseIdx]; let newUnits = JSON.parse(JSON.stringify(current.units || []));
         if (isPlaying) { newUnits.forEach((u, i) => { const origUnit = current.units[i]; if (activeAnimations.has(origUnit)) { const anim = activeAnimations.get(origUnit); u.x = anim.pos.x; u.y = anim.pos.y; u.angle = anim.angle; } }); }
         phases.push({ name: `PHASE ${phases.length + 1}`, units: newUnits, lines: JSON.parse(JSON.stringify(current.lines || [])), texts: JSON.parse(JSON.stringify(current.texts || [])), zones: JSON.parse(JSON.stringify(current.zones || [])), drawings: JSON.parse(JSON.stringify(current.drawings || [])), cameras: [] });
-        triggerSmoothTransition(phases.length - 1); triggerAutoSave();
+        triggerSmoothTransition(phases.length - 1); saveHistory(); triggerAutoSave();
+    }
+
+    function deletePhase() { 
+        if (transitionState > 0 || isPlaying || isRecordingIntro) return; 
+        if (phases.length <= 1) { alert("SYS WARNING: Cannot delete the final phase. Use WIPE to reset entire operation."); return; }
+        if (confirm(`AUTHORIZATION REQUIRED: DELETE ${phases[currentPhaseIdx].name}?`)) { 
+            phases.splice(currentPhaseIdx, 1); 
+            if (currentPhaseIdx >= phases.length) currentPhaseIdx = phases.length - 1; 
+            syncPhasePointers(); saveHistory(); triggerAutoSave(); 
+        } 
     }
 
     function nextPhase() { if (transitionState === 0 && !isPlaying && !isRecordingIntro && currentPhaseIdx < phases.length - 1) triggerSmoothTransition(currentPhaseIdx + 1); }
@@ -456,28 +470,11 @@
     function clearCanvas() { 
         if (transitionState > 0 || isRecordingIntro) return; 
         if (confirm("AUTHORIZATION REQUIRED: WIPE ENTIRE MULTI-PHASE OP?")) { 
-            // 1. Hard Reset Data State
-            operationName = "OPERATION: UNNAMED";
-            document.getElementById('opNameDisplay').innerText = operationName;
+            operationName = "OPERATION: UNNAMED"; document.getElementById('opNameDisplay').innerText = operationName;
             phases = [{ name: "PHASE 1", units: [], lines: [], texts: [], zones: [], drawings: [], cameras: [] }]; 
-            currentPhaseIdx = 0; 
-            syncPhasePointers(); 
-            
-            // 2. Hard Reset Map Image
-            backgroundImage = null; 
-            document.getElementById('bgInput').value = '';
-            
-            // 3. Clear all visual tracking and loops
-            resetInteractions(); 
-            activePings = [];
-            activeAnimations.clear();
-            stopPlayback(); 
-            
-            // 4. Force-reset memory caches to prevent ghost data resurrecting
-            historyStack = []; 
-            saveHistory(); 
-            localStorage.removeItem('501st_tactical_autosave'); 
-            triggerAutoSave(); 
+            currentPhaseIdx = 0; syncPhasePointers(); backgroundImage = null; document.getElementById('bgInput').value = '';
+            resetInteractions(); activePings = []; activeAnimations.clear(); stopPlayback(); 
+            historyStack = []; saveHistory(); localStorage.removeItem('501st_tactical_autosave'); triggerAutoSave(); 
         } 
     }
 
@@ -573,8 +570,6 @@
             isDragging = true; const mods = getModifiers(); currentDrawing = { points: [{x: mouseX, y: mouseY}], color: mods.color, bold: mods.bold, description: "" };
         } else if (mode === 'ping') {
             activePings.push({ x: mouseX, y: mouseY, radius: 0, alpha: 1, color: getModifiers().color }); 
-        } else if (mode === 'camera') {
-            pendingCamX = mouseX; pendingCamY = mouseY; document.getElementById('cameraInput').click(); setMode('move'); 
         } else if (mode === 'zone') {
             const shapeType = document.getElementById('zoneShape').value; const mods = getModifiers(); const isStriped = document.getElementById('zoneStripedCheck').checked;
             if (shapeType === 'polygon') {
@@ -693,8 +688,8 @@
         const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist < 5) return; 
         context.save(); context.translate(x1, y1); context.rotate(Math.atan2(dy, dx));
         context.beginPath(); context.moveTo(0, 0); context.lineTo(dist, 0);
-        context.strokeStyle = color; context.globalAlpha = invisible ? 0.05 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
-        context.globalAlpha = invisible ? 0.08 : 1.0; 
+        context.strokeStyle = color; context.globalAlpha = invisible ? 0.15 : 0.25; context.lineWidth = (bold ? 8 : 4) * scale; context.stroke();
+        context.globalAlpha = invisible ? 0.35 : 1.0; 
         const chevSpace = 35 * scale; const offset = (timeParam * 0.025 * scale) % chevSpace; context.lineWidth = (bold ? 5 : 2.5) * scale; context.lineCap = 'square'; context.lineJoin = 'miter';
         context.beginPath(); context.rect(0, -15*scale, dist, 30*scale); context.clip();
         for (let x = offset - chevSpace; x <= dist + chevSpace; x += chevSpace) { context.beginPath(); context.moveTo(x - 12*scale, -8*scale); context.lineTo(x, 0); context.lineTo(x - 12*scale, 8*scale); context.stroke(); }
@@ -718,14 +713,14 @@
         if (showGrid) {
             ctx.save();
             const cols = gridDivisions[Math.min(currentCellSizeIdx, gridDivisions.length - 1)] || 24; const cSize = mapW / cols; const rows = Math.floor(mapH / cSize);
-            const uColor = document.getElementById('gridColorPicker').value; ctx.strokeStyle = hexToRgba(uColor, 0.4); ctx.lineWidth = 2; 
+            const uColor = document.getElementById('gridColorPicker').value; ctx.strokeStyle = hexToRgba(uColor, 0.5); ctx.lineWidth = 3; 
             ctx.beginPath();
             for (let i = 0; i <= cols; i++) { ctx.moveTo(startX + (i * cSize), startY); ctx.lineTo(startX + (i * cSize), startY + mapH); }
             for (let j = 0; j <= rows; j++) { ctx.moveTo(startX, startY + (j * cSize)); ctx.lineTo(startX + mapW, startY + (j * cSize)); }
             ctx.stroke();
 
             ctx.fillStyle = 'rgba(8, 10, 13, 0.85)'; ctx.fillRect(startX, startY, mapW, 24); ctx.fillRect(startX, startY, 32, mapH); 
-            ctx.fillStyle = hexToRgba(uColor, 0.9); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = hexToRgba(uColor, 0.95); ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
             for (let i = 0; i < cols; i++) { 
                 let labelX = isMGRS ? String(i).padStart(2, '0') : getColLabel(i); ctx.font = isMGRS ? "bold 12px 'Courier New', Courier, monospace" : "bold 14px 'Courier New', Courier, monospace";
@@ -805,7 +800,7 @@
 
             if (u.isKIA) {
                 context.globalAlpha = 1.0; context.strokeStyle = '#ff1a1a'; context.lineWidth = 3 * uScale; context.beginPath();
-                let xSize = currentSize * 0.6; 
+                let xSize = currentSize * 0.55; 
                 context.moveTo(-xSize, -xSize); context.lineTo(xSize, xSize); context.moveTo(xSize, -xSize); context.lineTo(-xSize, xSize); context.stroke();
             }
 
